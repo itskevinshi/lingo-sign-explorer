@@ -85,7 +85,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     fetchProgress();
   }, [user, toast]);
 
-  // Save progress to database
+  // Save progress to database - only for logged in users
   const saveProgress = async (updatedProgress: UserProgress) => {
     if (!user) return;
     
@@ -135,6 +135,9 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateStreak = () => {
+    // Only update streak for logged-in users
+    if (!user) return;
+    
     const today = new Date().toISOString().split('T')[0];
     const lastActive = progress.lastActive;
 
@@ -198,11 +201,13 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       toast({
         title: "Lesson Completed!",
-        description: `You earned ${xpEarned} XP`,
+        description: user ? `You earned ${xpEarned} XP` : "Sign in to save your progress!",
       });
 
-      // Update streak if needed
-      updateStreak();
+      // Update streak if user is logged in
+      if (user) {
+        updateStreak();
+      }
       
       const updated = {
         ...prev,
@@ -210,8 +215,10 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         xpEarned: newTotalXP
       };
       
-      // Save to database
-      saveProgress(updated);
+      // Save to database only if user is logged in
+      if (user) {
+        saveProgress(updated);
+      }
       
       return updated;
     });
@@ -235,8 +242,10 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       };
       
-      // Save to database
-      saveProgress(updated);
+      // Save to database only if user is logged in
+      if (user) {
+        saveProgress(updated);
+      }
       
       return updated;
     });
@@ -293,6 +302,9 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (prerequisiteId) {
       return !isLessonCompleted(prerequisiteId);
     }
+
+    // For guest users, unlock all lessons
+    if (!user) return false;
     
     // Default logic: extract category and number
     const [category, numStr] = lessonId.split('-');
