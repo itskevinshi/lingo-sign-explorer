@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Check, X, ChevronRight, ChevronLeft, Tv, Loader2 } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronLeft, Tv, Loader2, LogIn } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { lessonData } from '@/data/lessonData';
@@ -87,8 +88,16 @@ const Lesson = () => {
       setAttempts(0);
     } else {
       // Last letter, complete the lesson
-      // Fixed: Don't recalculate XP here, just use what was accumulated
-      completeLesson(lesson.id, earnedXP > 0 ? earnedXP : lesson.xp);
+      if (user) {
+        // Only save progress if user is logged in
+        completeLesson(lesson.id, earnedXP > 0 ? earnedXP : lesson.xp);
+      } else {
+        // Show toast for guest users
+        toast({
+          title: "Lesson completed!",
+          description: `You earned ${earnedXP > 0 ? earnedXP : lesson.xp} XP, but progress isn't saved. Sign in to track your progress.`,
+        });
+      }
     }
   };
 
@@ -118,7 +127,17 @@ const Lesson = () => {
       finalXP = lesson.xp;
     }
     
-    completeLesson(lesson.id, finalXP);
+    if (user) {
+      // Only save progress if user is logged in
+      completeLesson(lesson.id, finalXP);
+    } else {
+      // Show toast for guest users
+      toast({
+        title: "Lesson completed!",
+        description: `You earned ${finalXP} XP, but progress isn't saved. Sign in to track your progress.`,
+      });
+    }
+    
     navigate('/lessons');
   };
 
@@ -127,9 +146,11 @@ const Lesson = () => {
     
     if (isCorrect) {
       setStatus('correct');
-      // Update accuracy for this letter
-      const accuracy = Math.max(0, 100 - (attempts * 20)); // Decrease accuracy with attempts
-      updateLetterAccuracy(lesson.content[currentLetterIndex], accuracy);
+      // Update accuracy for this letter (only if user is logged in)
+      if (user) {
+        const accuracy = Math.max(0, 100 - (attempts * 20)); // Decrease accuracy with attempts
+        updateLetterAccuracy(lesson.content[currentLetterIndex], accuracy);
+      }
     } else {
       setStatus('incorrect');
     }
@@ -176,22 +197,6 @@ const Lesson = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[70vh] text-center">
-        <div className="max-w-md space-y-4">
-          <h2 className="text-2xl font-bold">Sign in to track your progress</h2>
-          <p className="text-muted-foreground">
-            Create an account or sign in to save your progress as you complete lessons.
-          </p>
-          <Button asChild>
-            <a href="/auth/login">Sign In</a>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const currentLetter = lesson.content[currentLetterIndex];
   const progress = ((currentLetterIndex + 1) / lesson.content.length) * 100;
 
@@ -208,6 +213,22 @@ const Lesson = () => {
           </div>
         </div>
       </div>
+
+      {!user && (
+        <Alert className="bg-muted/30 border-muted">
+          <div className="flex items-center justify-between w-full">
+            <AlertDescription className="text-muted-foreground">
+              You're practicing as a guest. Sign in to save your progress!
+            </AlertDescription>
+            <Button variant="outline" size="sm" asChild>
+              <a href="/auth/login">
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign In
+              </a>
+            </Button>
+          </div>
+        </Alert>
+      )}
 
       <Progress value={progress} className="h-2" />
 
