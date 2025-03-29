@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
+import { Progress as ProgressBar } from '@/components/ui/progress';
 import { BarChart, Activity, Trophy, Calendar, Award, Bookmark, Target, TrendingUp } from 'lucide-react';
 
 // Mock data for charts and stats
@@ -122,7 +122,7 @@ const Progress = () => {
                       <div className="text-2xl font-bold">{letter}</div>
                       <div className="text-sm text-muted-foreground">{accuracy}%</div>
                     </div>
-                    <Progress value={accuracy} className="h-2" />
+                    <ProgressBar value={accuracy} className="h-2" />
                   </div>
                 ))}
               </div>
