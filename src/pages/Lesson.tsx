@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -77,6 +78,7 @@ const Lesson = () => {
       setAttempts(0);
     } else {
       // Last letter, complete the lesson
+      // Fixed: Don't recalculate XP here, just use what was accumulated
       completeLesson(lesson.id, earnedXP > 0 ? earnedXP : lesson.xp);
     }
   };
@@ -90,15 +92,24 @@ const Lesson = () => {
   };
 
   const handleFinishLesson = () => {
+    if (!lesson) return;
+    
+    let finalXP = earnedXP;
+    
+    // If the last letter was answered correctly, add its XP too
     if (status === 'correct') {
       const baseXP = 5;
       const bonusXP = Math.max(0, 5 - attempts) * 2;
       const letterXP = baseXP + bonusXP;
-      const finalXP = earnedXP + letterXP;
-      completeLesson(lesson.id, finalXP > 0 ? finalXP : lesson.xp);
-    } else {
-      completeLesson(lesson.id, earnedXP > 0 ? earnedXP : Math.floor(lesson.xp / 2));
+      finalXP += letterXP;
     }
+    
+    // If no XP was earned (all skipped or incorrect), use the default lesson XP
+    if (finalXP === 0) {
+      finalXP = lesson.xp;
+    }
+    
+    completeLesson(lesson.id, finalXP);
     navigate('/lessons');
   };
 
@@ -161,7 +172,7 @@ const Lesson = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6 animate-fade-in">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">{lesson.title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{lesson?.title}</h1>
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground">
             Practice signing each letter
