@@ -36,8 +36,21 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        setIsAccessGranted(true);
-        setIsActive(true);
+        videoRef.current.onloadedmetadata = () => {
+          // Only set active after video has fully loaded
+          if (videoRef.current) {
+            videoRef.current.play()
+              .then(() => {
+                setIsAccessGranted(true);
+                setIsActive(true);
+                console.log("Camera started successfully");
+              })
+              .catch(err => {
+                console.error("Error playing video:", err);
+                setError('Error playing video from camera: ' + err.message);
+              });
+          }
+        };
       }
     } catch (err) {
       console.error('Error accessing webcam:', err);
@@ -55,6 +68,7 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
         videoRef.current.srcObject = null;
       }
       setIsActive(false);
+      console.log("Camera stopped");
     }
   };
 
@@ -101,7 +115,7 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
             autoPlay 
             playsInline
             muted
-            className={`w-full h-[300px] md:h-[350px] object-cover bg-muted/50 ${!isActive ? 'hidden' : ''}`}
+            className={`w-full h-[300px] md:h-[350px] object-cover bg-muted/50 ${!isActive ? 'hidden' : 'block'}`}
           />
           
           {!isActive && (
