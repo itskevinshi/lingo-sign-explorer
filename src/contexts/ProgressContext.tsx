@@ -4,6 +4,7 @@ import { UserProgress } from '@/types/lessons';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
 
 const initialProgress: UserProgress = {
   completedLessons: {},
@@ -49,12 +50,16 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           
           if (data) {
+            // Use type casting to ensure the JSON data matches our expected types
+            const completedLessons = data.completed_lessons as Record<string, boolean> || {};
+            const letterAccuracy = data.letter_accuracy as Record<string, number> || {};
+            
             setProgress({
-              completedLessons: data.completed_lessons || {},
+              completedLessons: completedLessons,
               xpEarned: data.xp_earned || 0,
               daysStreak: data.days_streak || 0,
               lastActive: data.last_active || null,
-              letterAccuracy: data.letter_accuracy || {}
+              letterAccuracy: letterAccuracy
             });
           } else {
             // Create new progress record for user
