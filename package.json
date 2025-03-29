@@ -1,8 +1,7 @@
 {
-  "name": "lingo-sign-explorer",
+  "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "0.1.0",
-  "description": "An interactive sign language learning application with webcam integration",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -81,8 +80,5 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   }
 }
