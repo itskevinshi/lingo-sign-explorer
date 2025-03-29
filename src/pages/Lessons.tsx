@@ -4,17 +4,30 @@ import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Lock, Check, Clock, BookOpen, Bookmark, GraduationCap } from 'lucide-react';
+import { Lock, Check, Clock, BookOpen, Bookmark, GraduationCap, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { lessonData } from '@/data/lessonData';
 import { useProgress } from '@/contexts/ProgressContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { LessonItem } from '@/types/lessons';
 
 const Lessons = () => {
   const [selectedCategory, setSelectedCategory] = useState('alphabet');
-  const { isLessonCompleted, isLessonLocked } = useProgress();
+  const { isLessonCompleted, isLessonLocked, loading } = useProgress();
+  const { user } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[70vh]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg font-medium text-muted-foreground">Loading lessons...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 py-6 animate-fade-in">
@@ -23,6 +36,16 @@ const Lessons = () => {
         <p className="text-muted-foreground">
           Master American Sign Language through our structured lessons
         </p>
+        {!user && (
+          <div className="bg-muted/50 p-4 rounded-lg mt-2 border border-border">
+            <p className="text-sm text-muted-foreground">
+              Sign in to save your progress and track your achievements.
+            </p>
+            <Button variant="outline" size="sm" className="mt-2" asChild>
+              <Link to="/auth/login">Sign In</Link>
+            </Button>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="alphabet" onValueChange={setSelectedCategory} className="w-full">

@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProgress } from '@/types/lessons';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const initialProgress: UserProgress = {
   completedLessons: {},
@@ -18,34 +20,114 @@ interface ProgressContextProps {
   resetProgress: () => void;
   isLessonCompleted: (lessonId: string) => boolean;
   isLessonLocked: (lessonId: string, prerequisiteId?: string) => boolean;
+  loading: boolean;
 }
 
 const ProgressContext = createContext<ProgressContextProps | undefined>(undefined);
 
 export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [progress, setProgress] = useState<UserProgress>(initialProgress);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Load progress from localStorage on initial render
+  // Fetch progress from database when user logs in
   useEffect(() => {
-    const storedProgress = localStorage.getItem('userProgress');
-    if (storedProgress) {
-      try {
-        setProgress(JSON.parse(storedProgress));
-      } catch (error) {
-        console.error('Failed to parse progress data:', error);
+    const fetchProgress = async () => {
+      setLoading(true);
+      
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('user_progress')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+            throw error;
+          }
+          
+          if (data) {
+            setProgress({
+              completedLessons: data.completed_lessons || {},
+              xpEarned: data.xp_earned || 0,
+              daysStreak: data.days_streak || 0,
+              lastActive: data.last_active || null,
+              letterAccuracy: data.letter_accuracy || {}
+            });
+          } else {
+            // Create new progress record for user
+            await createUserProgress(initialProgress);
+            setProgress(initialProgress);
+          }
+        } catch (error) {
+          console.error('Error fetching progress:', error);
+          toast({
+            title: "Error loading progress",
+            description: "Failed to load your progress data.",
+            variant: "destructive"
+          });
+        }
+      } else {
+        // If no user, reset to initial progress
+        setProgress(initialProgress);
       }
-    }
+      
+      setLoading(false);
+    };
     
-    // Check and update streak
-    updateStreak();
-  }, []);
+    fetchProgress();
+  }, [user, toast]);
 
-  // Save progress to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('userProgress', JSON.stringify(progress));
-  }, [progress]);
+  // Save progress to database
+  const saveProgress = async (updatedProgress: UserProgress) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_progress')
+        .update({
+          completed_lessons: updatedProgress.completedLessons,
+          xp_earned: updatedProgress.xpEarned,
+          days_streak: updatedProgress.daysStreak,
+          last_active: updatedProgress.lastActive,
+          letter_accuracy: updatedProgress.letterAccuracy
+        })
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast({
+        title: "Error saving progress",
+        description: "Your progress could not be saved to the server.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Create initial progress record for a new user
+  const createUserProgress = async (initialData: UserProgress) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_progress')
+        .insert({
+          user_id: user.id,
+          completed_lessons: initialData.completedLessons,
+          xp_earned: initialData.xpEarned,
+          days_streak: initialData.daysStreak,
+          last_active: initialData.lastActive,
+          letter_accuracy: initialData.letterAccuracy
+        });
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error creating progress record:', error);
+    }
+  };
 
   const updateStreak = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -53,11 +135,15 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // If it's the first time
     if (!lastActive) {
-      setProgress(prev => ({
-        ...prev,
-        daysStreak: 1,
-        lastActive: today
-      }));
+      setProgress(prev => {
+        const updated = {
+          ...prev,
+          daysStreak: 1,
+          lastActive: today
+        };
+        saveProgress(updated);
+        return updated;
+      });
       return;
     }
 
@@ -73,18 +159,26 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (diffDays === 1) {
       // Consecutive day, increase streak
-      setProgress(prev => ({
-        ...prev,
-        daysStreak: prev.daysStreak + 1,
-        lastActive: today
-      }));
+      setProgress(prev => {
+        const updated = {
+          ...prev,
+          daysStreak: prev.daysStreak + 1,
+          lastActive: today
+        };
+        saveProgress(updated);
+        return updated;
+      });
     } else if (diffDays > 1) {
       // Streak broken, reset to 1
-      setProgress(prev => ({
-        ...prev,
-        daysStreak: 1,
-        lastActive: today
-      }));
+      setProgress(prev => {
+        const updated = {
+          ...prev,
+          daysStreak: 1,
+          lastActive: today
+        };
+        saveProgress(updated);
+        return updated;
+      });
     }
   };
 
@@ -105,11 +199,16 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Update streak if needed
       updateStreak();
       
-      return {
+      const updated = {
         ...prev,
         completedLessons: newCompletedLessons,
         xpEarned: newTotalXP
       };
+      
+      // Save to database
+      saveProgress(updated);
+      
+      return updated;
     });
   };
 
@@ -123,22 +222,58 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ? accuracy 
         : Math.round(accuracy * 0.7 + currentAccuracy * 0.3);
       
-      return {
+      const updated = {
         ...prev,
         letterAccuracy: {
           ...prev.letterAccuracy,
           [letter]: newAccuracy
         }
       };
+      
+      // Save to database
+      saveProgress(updated);
+      
+      return updated;
     });
   };
 
-  const resetProgress = () => {
-    setProgress(initialProgress);
-    toast({
-      title: "Progress Reset",
-      description: "All progress has been reset.",
-    });
+  const resetProgress = async () => {
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('user_progress')
+          .update({
+            completed_lessons: {},
+            xp_earned: 0,
+            days_streak: 0,
+            last_active: null,
+            letter_accuracy: {}
+          })
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+        
+        setProgress(initialProgress);
+        
+        toast({
+          title: "Progress Reset",
+          description: "All progress has been reset.",
+        });
+      } catch (error) {
+        console.error('Error resetting progress:', error);
+        toast({
+          title: "Error",
+          description: "Failed to reset progress.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      setProgress(initialProgress);
+      toast({
+        title: "Progress Reset",
+        description: "All progress has been reset.",
+      });
+    }
   };
 
   const isLessonCompleted = (lessonId: string): boolean => {
@@ -174,7 +309,8 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateLetterAccuracy,
         resetProgress,
         isLessonCompleted,
-        isLessonLocked
+        isLessonLocked,
+        loading
       }}
     >
       {children}

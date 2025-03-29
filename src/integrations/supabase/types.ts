@@ -36,6 +36,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_progress: {
+        Row: {
+          completed_lessons: Json
+          created_at: string
+          days_streak: number
+          id: string
+          last_active: string | null
+          letter_accuracy: Json
+          updated_at: string
+          user_id: string
+          xp_earned: number
+        }
+        Insert: {
+          completed_lessons?: Json
+          created_at?: string
+          days_streak?: number
+          id?: string
+          last_active?: string | null
+          letter_accuracy?: Json
+          updated_at?: string
+          user_id: string
+          xp_earned?: number
+        }
+        Update: {
+          completed_lessons?: Json
+          created_at?: string
+          days_streak?: number
+          id?: string
+          last_active?: string | null
+          letter_accuracy?: Json
+          updated_at?: string
+          user_id?: string
+          xp_earned?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

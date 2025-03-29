@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Check, X, ChevronRight, ChevronLeft, Tv } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronLeft, Tv, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { lessonData } from '@/data/lessonData';
 import { useProgress } from '@/contexts/ProgressContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 type LessonStatus = 'correct' | 'incorrect' | 'skipped' | null;
 
@@ -16,13 +16,15 @@ const Lesson = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { completeLesson, updateLetterAccuracy } = useProgress();
+  const { completeLesson, updateLetterAccuracy, loading: progressLoading } = useProgress();
+  const { user } = useAuth();
   
   const [lesson, setLesson] = useState<any>(null);
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const [status, setStatus] = useState<LessonStatus>(null);
   const [attempts, setAttempts] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!id) {
@@ -40,6 +42,7 @@ const Lesson = () => {
         setStatus(null);
         setAttempts(0);
         setEarnedXP(0);
+        setIsLoading(false);
         return;
       }
     }
@@ -52,6 +55,10 @@ const Lesson = () => {
     });
     navigate('/lessons');
   }, [id, navigate, toast]);
+
+  useEffect(() => {
+    setIsLoading(progressLoading);
+  }, [progressLoading]);
 
   const handleNextLetter = () => {
     if (!lesson) return;
@@ -95,7 +102,6 @@ const Lesson = () => {
     navigate('/lessons');
   };
 
-  // Simplified function to check the user's answer - in a real app, this would validate against actual sign recognition
   const handleAnswerCheck = (isCorrect: boolean) => {
     setAttempts(attempts + 1);
     
@@ -114,10 +120,37 @@ const Lesson = () => {
     setAttempts(attempts + 1);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[70vh]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg font-medium text-muted-foreground">Loading lesson...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!lesson) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
-        <p>Loading lesson...</p>
+        <p>Lesson not found.</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-center">
+        <div className="max-w-md space-y-4">
+          <h2 className="text-2xl font-bold">Sign in to track your progress</h2>
+          <p className="text-muted-foreground">
+            Create an account or sign in to save your progress as you complete lessons.
+          </p>
+          <Button asChild>
+            <a href="/auth/login">Sign In</a>
+          </Button>
+        </div>
       </div>
     );
   }

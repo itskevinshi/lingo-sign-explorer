@@ -3,13 +3,15 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress as ProgressBar } from '@/components/ui/progress';
-import { BarChart, Activity, Trophy, Calendar, Award, Bookmark, Target, TrendingUp, RotateCcw } from 'lucide-react';
+import { BarChart, Activity, Trophy, Calendar, Award, Bookmark, Target, TrendingUp, RotateCcw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProgress } from '@/contexts/ProgressContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const Progress = () => {
-  const { progress, resetProgress } = useProgress();
+  const { progress, resetProgress, loading } = useProgress();
+  const { user } = useAuth();
   
   const achievements = [
     { 
@@ -38,6 +40,33 @@ const Progress = () => {
       unlocked: Object.keys(progress.letterAccuracy).length >= 26 
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[70vh]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg font-medium text-muted-foreground">Loading your progress...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-center">
+        <div className="max-w-md space-y-4">
+          <h2 className="text-2xl font-bold">Sign in to track your progress</h2>
+          <p className="text-muted-foreground">
+            Create an account or sign in to save your progress and access it from any device.
+          </p>
+          <Button asChild>
+            <a href="/auth/login">Sign In</a>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 py-6 animate-fade-in">
