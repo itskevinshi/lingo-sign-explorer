@@ -7,16 +7,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Bell, User, Shield, RotateCcw, LogOut, Loader2 } from 'lucide-react';
+import { Bell, User, Shield, RotateCcw, LogOut, Loader2, Check, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProgress } from '@/contexts/ProgressContext';
 import { supabase } from '@/integrations/supabase/client';
 import AvatarUpload from '@/components/AvatarUpload';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const Profile = () => {
   const { toast } = useToast();
   const { user, signOut, isLoading } = useAuth();
+  const { progress, resetProgress, isLessonCompleted } = useProgress();
   const navigate = useNavigate();
   
   const [profileData, setProfileData] = useState({
@@ -29,8 +33,16 @@ const Profile = () => {
   });
   const [profileLoading, setProfileLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [selectedLessons, setSelectedLessons] = useState<Record<string, boolean>>({});
+  const [selectLessonsDialogOpen, setSelectLessonsDialogOpen] = useState(false);
+  
+  // Get the list of all completed lessons for the reset specific lessons dialog
+  const completedLessonsList = Object.keys(progress.completedLessons).filter(id => 
+    progress.completedLessons[id]
+  );
 
   useEffect(() => {
     // Redirect if not logged in
@@ -137,12 +149,80 @@ const Profile = () => {
     }
   };
 
-  const handleResetProgress = () => {
-    toast({
-      title: "Progress Reset",
-      description: "Your learning progress has been reset.",
-      variant: "destructive",
-    });
+  const handleResetAllProgress = async () => {
+    setIsResetting(true);
+    try {
+      await resetProgress();
+      toast({
+        title: "Progress Reset",
+        description: "Your learning progress has been reset successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Reset Failed",
+        description: error.message || "Failed to reset progress",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const toggleLessonSelection = (lessonId: string) => {
+    setSelectedLessons(prev => ({
+      ...prev,
+      [lessonId]: !prev[lessonId]
+    }));
+  };
+
+  const resetSelectedLessons = async () => {
+    setIsResetting(true);
+    try {
+      // Filter only selected lessons
+      const lessonsToReset = Object.keys(selectedLessons).filter(id => selectedLessons[id]);
+      
+      if (lessonsToReset.length === 0) {
+        throw new Error("No lessons selected");
+      }
+      
+      // Create a new completedLessons object without the selected lessons
+      const updatedCompletedLessons = { ...progress.completedLessons };
+      lessonsToReset.forEach(lessonId => {
+        delete updatedCompletedLessons[lessonId];
+      });
+      
+      // Update in Supabase
+      if (user) {
+        const { error } = await supabase
+          .from('user_progress')
+          .update({
+            completed_lessons: updatedCompletedLessons
+          })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+      }
+      
+      // Close the dialog and reset selection
+      setSelectLessonsDialogOpen(false);
+      setSelectedLessons({});
+      
+      toast({
+        title: "Lessons Reset",
+        description: `Successfully reset ${lessonsToReset.length} selected lessons.`,
+      });
+      
+      // Force a reload to refresh the progress context
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Reset Failed",
+        description: error.message || "Failed to reset selected lessons",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const getInitials = () => {
@@ -380,8 +460,19 @@ const Profile = () => {
                               </DialogHeader>
                               <DialogFooter>
                                 <Button variant="outline">Cancel</Button>
-                                <Button variant="destructive" onClick={handleResetProgress}>
-                                  Yes, reset everything
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={handleResetAllProgress}
+                                  disabled={isResetting}
+                                >
+                                  {isResetting ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Resetting...
+                                    </>
+                                  ) : (
+                                    'Yes, reset everything'
+                                  )}
                                 </Button>
                               </DialogFooter>
                             </DialogContent>
@@ -398,9 +489,72 @@ const Profile = () => {
                         <div>
                           <h3 className="font-medium">Reset Specific Lessons</h3>
                           <p className="text-sm text-muted-foreground">Clear progress for individual lessons</p>
-                          <Button variant="outline" size="sm" className="mt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-2"
+                            onClick={() => setSelectLessonsDialogOpen(true)}
+                            disabled={completedLessonsList.length === 0}
+                          >
                             Select Lessons
                           </Button>
+                          
+                          <Dialog open={selectLessonsDialogOpen} onOpenChange={setSelectLessonsDialogOpen}>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Select lessons to reset</DialogTitle>
+                                <DialogDescription>
+                                  Choose the lessons you want to reset. This will mark them as incomplete.
+                                </DialogDescription>
+                              </DialogHeader>
+                              
+                              {completedLessonsList.length > 0 ? (
+                                <ScrollArea className="h-[200px] border rounded-md p-2">
+                                  <div className="space-y-2">
+                                    {completedLessonsList.map(lessonId => (
+                                      <div key={lessonId} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                          id={lessonId} 
+                                          checked={selectedLessons[lessonId] || false}
+                                          onCheckedChange={() => toggleLessonSelection(lessonId)}
+                                        />
+                                        <label htmlFor={lessonId} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                          {lessonId}
+                                        </label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-6 text-center">
+                                  <p className="text-muted-foreground">No completed lessons found.</p>
+                                </div>
+                              )}
+                              
+                              <DialogFooter>
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => setSelectLessonsDialogOpen(false)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button 
+                                  variant="destructive"
+                                  onClick={resetSelectedLessons}
+                                  disabled={isResetting || Object.values(selectedLessons).filter(Boolean).length === 0}
+                                >
+                                  {isResetting ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Resetting...
+                                    </>
+                                  ) : (
+                                    'Reset Selected Lessons'
+                                  )}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
                     </div>
