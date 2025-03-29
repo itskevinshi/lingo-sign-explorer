@@ -45,6 +45,17 @@ const Navigation = () => {
     };
     
     fetchUserAvatar();
+    
+    // Add listener for avatar updates
+    const handleAvatarUpdate = (event: CustomEvent<string>) => {
+      setAvatarUrl(event.detail);
+    };
+    
+    window.addEventListener('avatar-updated', handleAvatarUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('avatar-updated', handleAvatarUpdate as EventListener);
+    };
   }, [user]);
 
   const handleNavigation = () => {

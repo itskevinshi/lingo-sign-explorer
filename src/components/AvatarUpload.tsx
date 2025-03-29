@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Camera, Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+// Create a custom event for avatar updates
+export const emitAvatarUpdate = (url: string) => {
+  const event = new CustomEvent('avatar-updated', { detail: url });
+  window.dispatchEvent(event);
+};
+
 interface AvatarUploadProps {
   uid: string;
   url: string | null;
@@ -85,7 +91,11 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
         if (updateError) throw updateError;
 
+        // Call the callback
         onUploadComplete(publicUrl);
+        
+        // Emit the custom event for global state updates
+        emitAvatarUpdate(publicUrl);
         
         toast({
           title: "Success",
