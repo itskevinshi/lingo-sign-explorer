@@ -14,6 +14,7 @@ import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
 import AppLayout from "./components/layout/AppLayout";
 import AuthLayout from "./components/layout/AuthLayout";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -23,20 +24,22 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Home />} />
-            <Route path="lessons" element={<Lessons />} />
-            <Route path="lessons/:id" element={<Lesson />} />
-            <Route path="progress" element={<Progress />} />
-            <Route path="profile" element={<Profile />} />
-          </Route>
-          <Route path="/auth" element={<AuthLayout />}>
-            <Route path="login" element={<Login />} />
-            <Route path="signup" element={<SignUp />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Home />} />
+              <Route path="lessons" element={<Lessons />} />
+              <Route path="lessons/:id" element={<Lesson />} />
+              <Route path="progress" element={<Progress />} />
+              <Route path="profile" element={<Profile />} />
+            </Route>
+            <Route path="/auth" element={<AuthLayout />}>
+              <Route path="login" element={<Login />} />
+              <Route path="signup" element={<SignUp />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

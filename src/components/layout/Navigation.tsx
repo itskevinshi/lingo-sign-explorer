@@ -1,11 +1,13 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Hand, BookOpen, BarChart, User, Menu, X } from 'lucide-react';
+import { Hand, BookOpen, BarChart, User, Menu, X, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const navItems = [
   { name: 'Home', path: '/', icon: <Hand className="h-5 w-5" /> },
@@ -18,9 +20,27 @@ const Navigation = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
+  const { user, isLoading, signOut } = useAuth();
 
   const handleNavigation = () => {
     if (open) setOpen(false);
+  };
+
+  const getUserInitials = () => {
+    if (!user) return 'G';
+    
+    // Try to get initials from user metadata if available
+    const metadata = user.user_metadata;
+    if (metadata) {
+      const firstName = metadata.first_name || '';
+      const lastName = metadata.last_name || '';
+      if (firstName && lastName) {
+        return `${firstName.charAt(0)}${lastName.charAt(0)}`;
+      }
+    }
+    
+    // Fallback to email
+    return user.email ? user.email.charAt(0).toUpperCase() : 'U';
   };
 
   return (
@@ -60,12 +80,35 @@ const Navigation = () => {
                   ))}
                 </nav>
                 <div className="flex flex-col gap-2">
-                  <Link to="/auth/login" onClick={handleNavigation}>
-                    <Button variant="outline" className="w-full">Sign In</Button>
-                  </Link>
-                  <Link to="/auth/signup" onClick={handleNavigation}>
-                    <Button className="w-full">Sign Up</Button>
-                  </Link>
+                  {isLoading ? (
+                    <Button variant="ghost" disabled className="w-full">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </Button>
+                  ) : user ? (
+                    <>
+                      <div className="flex items-center space-x-2 px-3 py-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.user_metadata?.avatar_url} alt="Avatar" />
+                          <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                        </Avatar>
+                        <div className="text-sm">
+                          <p className="font-medium">{user.user_metadata?.first_name || user.email}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" className="w-full" onClick={signOut}>Sign Out</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/auth/login" onClick={handleNavigation}>
+                        <Button variant="outline" className="w-full">Sign In</Button>
+                      </Link>
+                      <Link to="/auth/signup" onClick={handleNavigation}>
+                        <Button className="w-full">Sign Up</Button>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>
@@ -88,12 +131,31 @@ const Navigation = () => {
               </Link>
             ))}
             <div className="flex items-center gap-2 ml-4">
-              <Link to="/auth/login">
-                <Button variant="outline">Sign In</Button>
-              </Link>
-              <Link to="/auth/signup">
-                <Button>Sign Up</Button>
-              </Link>
+              {isLoading ? (
+                <Button variant="ghost" disabled>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </Button>
+              ) : user ? (
+                <div className="flex items-center gap-2">
+                  <Link to="/profile">
+                    <Avatar className="h-8 w-8 cursor-pointer">
+                      <AvatarImage src={user.user_metadata?.avatar_url} alt="Avatar" />
+                      <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                    </Avatar>
+                  </Link>
+                  <Button variant="outline" size="sm" onClick={signOut}>Sign Out</Button>
+                </div>
+              ) : (
+                <>
+                  <Link to="/auth/login">
+                    <Button variant="outline">Sign In</Button>
+                  </Link>
+                  <Link to="/auth/signup">
+                    <Button>Sign Up</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         )}
