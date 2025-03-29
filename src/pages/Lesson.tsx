@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { lessonData } from '@/data/lessonData';
 import { useProgress } from '@/contexts/ProgressContext';
 import { useAuth } from '@/contexts/AuthContext';
+import WebcamComponent from '@/components/WebcamComponent';
 
 type LessonStatus = 'correct' | 'incorrect' | 'skipped' | null;
 
@@ -26,6 +26,7 @@ const Lesson = () => {
   const [attempts, setAttempts] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [showWebcam, setShowWebcam] = useState(true);
 
   useEffect(() => {
     if (!id) {
@@ -131,6 +132,10 @@ const Lesson = () => {
     setAttempts(attempts + 1);
   };
 
+  const toggleWebcam = () => {
+    setShowWebcam(prev => !prev);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
@@ -186,35 +191,49 @@ const Lesson = () => {
       <Progress value={progress} className="h-2" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card className="overflow-hidden">
-          <CardContent className="p-6 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                For this demo, simply choose if you got it right or wrong:
-              </p>
-              <div className="flex space-x-4 justify-center">
-                <Button 
-                  onClick={() => handleAnswerCheck(true)} 
-                  variant="outline" 
-                  className="flex-1 border-accent text-accent hover:bg-accent/10"
-                  disabled={status !== null}
-                >
-                  <Check className="h-5 w-5 mr-2" />
-                  Got it right
-                </Button>
-                <Button 
-                  onClick={() => handleAnswerCheck(false)} 
-                  variant="outline" 
-                  className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
-                  disabled={status !== null}
-                >
-                  <X className="h-5 w-5 mr-2" />
-                  Got it wrong
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {showWebcam ? (
+            <WebcamComponent />
+          ) : (
+            <Card className="overflow-hidden">
+              <CardContent className="p-6 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    For this demo, simply choose if you got it right or wrong:
+                  </p>
+                  <div className="flex space-x-4 justify-center">
+                    <Button 
+                      onClick={() => handleAnswerCheck(true)} 
+                      variant="outline" 
+                      className="flex-1 border-accent text-accent hover:bg-accent/10"
+                      disabled={status !== null}
+                    >
+                      <Check className="h-5 w-5 mr-2" />
+                      Got it right
+                    </Button>
+                    <Button 
+                      onClick={() => handleAnswerCheck(false)} 
+                      variant="outline" 
+                      className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                      disabled={status !== null}
+                    >
+                      <X className="h-5 w-5 mr-2" />
+                      Got it wrong
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            onClick={toggleWebcam}
+          >
+            {showWebcam ? "Show Demo Buttons" : "Show Webcam"}
+          </Button>
+        </div>
 
         <div className="space-y-6">
           <Card className="h-[200px] flex flex-col items-center justify-center">
