@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,16 @@ const Lesson = () => {
   const [showWebcam, setShowWebcam] = useState(true);
   const [webcamKey, setWebcamKey] = useState(Date.now());
   const [webcamSupported, setWebcamSupported] = useState(true);
+  
+  const frameCountRef = useRef(0);
+  const lastLogTimeRef = useRef(Date.now());
+  const frameMetricsRef = useRef({
+    totalFrames: 0,
+    framesProcessed: 0,
+    avgWidth: 0,
+    avgHeight: 0,
+    startTime: Date.now(),
+  });
 
   useEffect(() => {
     if (!id) {
@@ -170,12 +179,80 @@ const Lesson = () => {
   };
 
   const handleWebcamFrame = useCallback((videoElement: HTMLVideoElement) => {
-    // This will be called for each video frame when the webcam is active
-    // You can implement sign language detection here in the future
-    // For now, we'll just log occasionally to confirm it's working without flooding the console
-    if (Math.random() < 0.01) { // Only log approximately 1% of frames
-      console.log("Webcam active", videoElement.videoWidth, videoElement.videoHeight);
+    // Increment frame counter
+    frameCountRef.current += 1;
+    frameMetricsRef.current.totalFrames += 1;
+    
+    const currentTime = Date.now();
+    const elapsedSinceStart = (currentTime - frameMetricsRef.current.startTime) / 1000;
+    
+    // Process frame metrics
+    if (videoElement.videoWidth && videoElement.videoHeight) {
+      frameMetricsRef.current.framesProcessed += 1;
+      frameMetricsRef.current.avgWidth = 
+        (frameMetricsRef.current.avgWidth * (frameMetricsRef.current.framesProcessed - 1) + videoElement.videoWidth) / 
+        frameMetricsRef.current.framesProcessed;
+      frameMetricsRef.current.avgHeight = 
+        (frameMetricsRef.current.avgHeight * (frameMetricsRef.current.framesProcessed - 1) + videoElement.videoHeight) / 
+        frameMetricsRef.current.framesProcessed;
     }
+    
+    // Log every 3 seconds or if it's the first frame
+    if (currentTime - lastLogTimeRef.current > 3000 || frameMetricsRef.current.totalFrames === 1) {
+      const fps = frameCountRef.current / ((currentTime - lastLogTimeRef.current) / 1000);
+      const overallFps = frameMetricsRef.current.totalFrames / elapsedSinceStart;
+      
+      console.log('Webcam Frame Stats:', {
+        frameSize: `${videoElement.videoWidth}x${videoElement.videoHeight}`,
+        currentFps: fps.toFixed(1),
+        overallFps: overallFps.toFixed(1),
+        totalFrames: frameMetricsRef.current.totalFrames,
+        avgFrameSize: `${frameMetricsRef.current.avgWidth.toFixed(0)}x${frameMetricsRef.current.avgHeight.toFixed(0)}`,
+        readyState: videoElement.readyState,
+        timeElapsed: `${elapsedSinceStart.toFixed(1)}s`,
+      });
+      
+      // Sample frame data - only log occasionally to avoid flooding the console
+      if (frameMetricsRef.current.totalFrames % 30 === 0) {
+        try {
+          // Create a canvas to capture the current frame
+          const canvas = document.createElement('canvas');
+          canvas.width = videoElement.videoWidth;
+          canvas.height = videoElement.videoHeight;
+          const ctx = canvas.getContext('2d');
+          
+          if (ctx) {
+            // Draw the current video frame to the canvas
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Get the frame as a base64 encoded string (small size for logging)
+            const smallCanvas = document.createElement('canvas');
+            smallCanvas.width = 100;  // Small thumbnail for logging
+            smallCanvas.height = 75;
+            const smallCtx = smallCanvas.getContext('2d');
+            
+            if (smallCtx) {
+              smallCtx.drawImage(videoElement, 0, 0, 100, 75);
+              console.log('Frame Sample Size:', {
+                thumbnailSize: '100x75',
+                sampleDataSize: Math.floor(smallCanvas.toDataURL('image/jpeg', 0.5).length / 1024) + 'KB'
+              });
+              // Log only the data size, not the actual image data to avoid console spam
+              // In real processing, here you would send the full-sized frame
+            }
+          }
+        } catch (err) {
+          console.error('Error capturing frame:', err);
+        }
+      }
+      
+      // Reset the frame counter and update last log time
+      frameCountRef.current = 0;
+      lastLogTimeRef.current = currentTime;
+    }
+    
+    // Here you would add any actual frame processing for sign detection
+    // For example: if (currentLetterIndex !== null && lesson) { processSignDetection(videoElement, lesson.content[currentLetterIndex]); }
   }, []);
 
   if (isLoading) {
