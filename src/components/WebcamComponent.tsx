@@ -1,9 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, Camera, CameraOff, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { isCameraSupported, requestCameraAccess, stopMediaStream } from '@/lib/webcam';
 
 interface WebcamComponentProps {
   onFrame?: (videoElement: HTMLVideoElement) => void;
@@ -20,11 +20,15 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
     try {
       setError(null);
       
+      // Stop any existing stream
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        stopMediaStream(streamRef.current);
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      console.log("Requesting webcam access...");
+      
+      // Use the utility function to get camera access
+      const { stream, error: accessError } = await requestCameraAccess({ 
         video: { 
           facingMode: 'user',
           width: { ideal: 640 },
@@ -32,18 +36,35 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
         } 
       });
       
+      if (accessError) {
+        setError(accessError);
+        setIsAccessGranted(false);
+        setIsActive(false);
+        return;
+      }
+      
+      if (!stream) {
+        setError("Failed to access camera for unknown reasons");
+        setIsAccessGranted(false);
+        setIsActive(false);
+        return;
+      }
+      
+      console.log("Webcam access granted", stream);
       streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // Make sure we set the isActive state when metadata is loaded
         videoRef.current.onloadedmetadata = () => {
-          // Only set active after video has fully loaded
           if (videoRef.current) {
+            console.log("Video metadata loaded, attempting to play...");
             videoRef.current.play()
               .then(() => {
+                console.log("Camera started successfully");
                 setIsAccessGranted(true);
                 setIsActive(true);
-                console.log("Camera started successfully");
               })
               .catch(err => {
                 console.error("Error playing video:", err);
@@ -51,10 +72,16 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
               });
           }
         };
+        
+        // Add an error handler for the video element
+        videoRef.current.onerror = (e) => {
+          console.error("Video element error:", e);
+          setError('Video element error: ' + e);
+        };
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error accessing webcam:', err);
-      setError('Could not access your camera. Please grant permission and try again.');
+      setError('Could not access your camera: ' + (err.message || 'Unknown error'));
       setIsAccessGranted(false);
       setIsActive(false);
     }
@@ -62,7 +89,7 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      stopMediaStream(streamRef.current);
       streamRef.current = null;
       if (videoRef.current) {
         videoRef.current.srcObject = null;
@@ -81,8 +108,17 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
   };
 
   useEffect(() => {
-    // Initial camera setup
-    startCamera();
+    // Check browser support
+    if (!isCameraSupported()) {
+      setError("Your browser doesn't support camera access");
+      return;
+    }
+    
+    // Initial camera setup with slight delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      console.log("Starting camera from useEffect...");
+      startCamera();
+    }, 500);
 
     // Process frames if callback provided
     let animationFrameId: number;
@@ -99,12 +135,13 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
 
     // Cleanup
     return () => {
+      clearTimeout(timer);
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
       stopCamera();
     };
-  }, [onFrame, isActive]);
+  }, [onFrame]);
 
   return (
     <div className="webcam-container w-full">
@@ -116,6 +153,7 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
             playsInline
             muted
             className={`w-full h-[300px] md:h-[350px] object-cover bg-muted/50 ${!isActive ? 'hidden' : 'block'}`}
+            style={{ display: isActive ? 'block' : 'none' }}
           />
           
           {!isActive && (

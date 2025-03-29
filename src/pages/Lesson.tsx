@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { lessonData } from '@/data/lessonData';
 import { useProgress } from '@/contexts/ProgressContext';
 import { useAuth } from '@/contexts/AuthContext';
 import WebcamComponent from '@/components/WebcamComponent';
+import { isCameraSupported } from '@/lib/webcam';
 
 type LessonStatus = 'correct' | 'incorrect' | 'skipped' | null;
 
@@ -27,6 +28,8 @@ const Lesson = () => {
   const [earnedXP, setEarnedXP] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showWebcam, setShowWebcam] = useState(true);
+  const [webcamKey, setWebcamKey] = useState(Date.now());
+  const [webcamSupported, setWebcamSupported] = useState(true);
 
   useEffect(() => {
     if (!id) {
@@ -61,6 +64,11 @@ const Lesson = () => {
   useEffect(() => {
     setIsLoading(progressLoading);
   }, [progressLoading]);
+
+  useEffect(() => {
+    // Check if webcam is supported when component mounts
+    setWebcamSupported(isCameraSupported());
+  }, []);
 
   const handleNextLetter = () => {
     if (!lesson) return;
@@ -134,7 +142,20 @@ const Lesson = () => {
 
   const toggleWebcam = () => {
     setShowWebcam(prev => !prev);
+    // Force re-initialization of webcam when toggling back to it
+    if (!showWebcam) {
+      setWebcamKey(Date.now());
+    }
   };
+
+  const handleWebcamFrame = useCallback((videoElement: HTMLVideoElement) => {
+    // This will be called for each video frame when the webcam is active
+    // You can implement sign language detection here in the future
+    // For now, we'll just log occasionally to confirm it's working without flooding the console
+    if (Math.random() < 0.01) { // Only log approximately 1% of frames
+      console.log("Webcam active", videoElement.videoWidth, videoElement.videoHeight);
+    }
+  }, []);
 
   if (isLoading) {
     return (
@@ -193,7 +214,22 @@ const Lesson = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
           {showWebcam ? (
-            <WebcamComponent />
+            webcamSupported ? (
+              <WebcamComponent key={webcamKey} onFrame={handleWebcamFrame} />
+            ) : (
+              <Card className="overflow-hidden">
+                <CardContent className="p-6 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-sm text-destructive mb-2">
+                      Your browser doesn't support webcam access.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Try using a different browser like Chrome or Firefox.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
           ) : (
             <Card className="overflow-hidden">
               <CardContent className="p-6 flex items-center justify-center">
@@ -230,6 +266,7 @@ const Lesson = () => {
             variant="outline" 
             className="w-full" 
             onClick={toggleWebcam}
+            disabled={!webcamSupported && showWebcam}
           >
             {showWebcam ? "Show Demo Buttons" : "Show Webcam"}
           </Button>
