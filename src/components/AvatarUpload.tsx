@@ -37,12 +37,6 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     lg: 'h-8 w-8'
   }[size];
 
-  const cameraButtonSize = {
-    sm: 'h-6 w-6',
-    md: 'h-8 w-8',
-    lg: 'h-10 w-10'
-  }[size];
-
   const getInitials = () => {
     return 'U';
   };
@@ -136,21 +130,8 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         </AvatarFallback>
       </Avatar>
       
-      <Button 
-        size="icon" 
-        variant="outline" 
-        className={`absolute bottom-0 right-0 rounded-full ${cameraButtonSize} bg-background border-muted-foreground`}
-        onClick={handleButtonClick}
-        disabled={uploading}
-      >
-        {uploading ? (
-          <Loader2 className={`h-4 w-4 animate-spin`} />
-        ) : (
-          <Camera className="h-4 w-4" />
-        )}
-        <span className="sr-only">Upload avatar</span>
-      </Button>
-
+      {/* Removed the camera button overlay */}
+      
       {showUploadButton && (
         <Button 
           variant="outline" 

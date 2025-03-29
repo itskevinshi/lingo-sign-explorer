@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Hand, BookOpen, BarChart, User, Menu, X, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 
 const navItems = [
   { name: 'Home', path: '/', icon: <Hand className="h-5 w-5" /> },
@@ -21,6 +22,30 @@ const Navigation = () => {
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
   const { user, isLoading, signOut } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', user.id)
+            .single();
+            
+          if (error) throw error;
+          if (data) {
+            setAvatarUrl(data.avatar_url);
+          }
+        } catch (error) {
+          console.error('Error fetching user avatar:', error);
+        }
+      }
+    };
+    
+    fetchUserAvatar();
+  }, [user]);
 
   const handleNavigation = () => {
     if (open) setOpen(false);
@@ -89,7 +114,7 @@ const Navigation = () => {
                     <>
                       <div className="flex items-center space-x-2 px-3 py-2">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.user_metadata?.avatar_url} alt="Avatar" />
+                          <AvatarImage src={avatarUrl} alt="Avatar" />
                           <AvatarFallback>{getUserInitials()}</AvatarFallback>
                         </Avatar>
                         <div className="text-sm">
@@ -140,7 +165,7 @@ const Navigation = () => {
                 <div className="flex items-center gap-2">
                   <Link to="/profile">
                     <Avatar className="h-8 w-8 cursor-pointer">
-                      <AvatarImage src={user.user_metadata?.avatar_url} alt="Avatar" />
+                      <AvatarImage src={avatarUrl} alt="Avatar" />
                       <AvatarFallback>{getUserInitials()}</AvatarFallback>
                     </Avatar>
                   </Link>
