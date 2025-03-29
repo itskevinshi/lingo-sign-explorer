@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, User, Shield, RotateCcw, LogOut, Camera, Loader2 } from 'lucide-react';
+import { Bell, User, Shield, RotateCcw, LogOut, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import AvatarUpload from '@/components/AvatarUpload';
 
 const Profile = () => {
   const { toast } = useToast();
@@ -151,6 +151,10 @@ const Profile = () => {
     return first && last ? `${first}${last}` : 'U';
   };
 
+  const handleAvatarUpdate = (url: string) => {
+    setAvatarUrl(url);
+  };
+
   if (isLoading || profileLoading) {
     return (
       <div className="flex h-80 items-center justify-center">
@@ -176,14 +180,15 @@ const Profile = () => {
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
             <div className="relative">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={avatarUrl || ''} alt="Profile picture" />
-                <AvatarFallback className="text-3xl bg-accent text-accent-foreground">{getInitials()}</AvatarFallback>
-              </Avatar>
-              <Button size="icon" variant="outline" className="absolute bottom-0 right-0 rounded-full h-8 w-8">
-                <Camera className="h-4 w-4" />
-                <span className="sr-only">Upload avatar</span>
-              </Button>
+              {user && (
+                <AvatarUpload 
+                  uid={user.id}
+                  url={avatarUrl}
+                  onUploadComplete={handleAvatarUpdate}
+                  size="lg"
+                  showUploadButton={true}
+                />
+              )}
             </div>
             <div className="text-center">
               <p className="text-lg font-medium">{profileData.firstName} {profileData.lastName}</p>
