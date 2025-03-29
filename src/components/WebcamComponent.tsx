@@ -12,17 +12,32 @@ interface WebcamComponentProps {
 const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isActiveRef = useRef<boolean>(false); // Use ref to track active status
+  const logCounterRef = useRef<number>(0); // Counter for log throttling
   const [isAccessGranted, setIsAccessGranted] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isActive, setIsActive] = useState<boolean>(false);
+
+  // Helper function to update both state and ref
+  const updateActiveStatus = (active: boolean) => {
+    isActiveRef.current = active;
+    setIsActive(active);
+  };
 
   const startCamera = async () => {
     try {
       setError(null);
       
+      // Don't attempt to start the camera if it's already active
+      if (isActiveRef.current && streamRef.current) {
+        console.log("Camera is already active, skipping initialization");
+        return;
+      }
+      
       // Stop any existing stream
       if (streamRef.current) {
         stopMediaStream(streamRef.current);
+        streamRef.current = null;
       }
 
       console.log("Requesting webcam access...");
@@ -39,14 +54,14 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
       if (accessError) {
         setError(accessError);
         setIsAccessGranted(false);
-        setIsActive(false);
+        updateActiveStatus(false);
         return;
       }
       
       if (!stream) {
         setError("Failed to access camera for unknown reasons");
         setIsAccessGranted(false);
-        setIsActive(false);
+        updateActiveStatus(false);
         return;
       }
       
@@ -54,6 +69,10 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
       streamRef.current = stream;
       
       if (videoRef.current) {
+        // Set isActive state immediately to allow frame processing
+        updateActiveStatus(true);
+        setIsAccessGranted(true);
+        
         videoRef.current.srcObject = stream;
         
         // Make sure we set the isActive state when metadata is loaded
@@ -63,12 +82,13 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
             videoRef.current.play()
               .then(() => {
                 console.log("Camera started successfully");
-                setIsAccessGranted(true);
-                setIsActive(true);
+                // Already set above, but keeping for redundancy
+                updateActiveStatus(true);
               })
               .catch(err => {
                 console.error("Error playing video:", err);
                 setError('Error playing video from camera: ' + err.message);
+                updateActiveStatus(false);
               });
           }
         };
@@ -77,13 +97,14 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
         videoRef.current.onerror = (e) => {
           console.error("Video element error:", e);
           setError('Video element error: ' + e);
+          updateActiveStatus(false);
         };
       }
     } catch (err: any) {
       console.error('Error accessing webcam:', err);
       setError('Could not access your camera: ' + (err.message || 'Unknown error'));
       setIsAccessGranted(false);
-      setIsActive(false);
+      updateActiveStatus(false);
     }
   };
 
@@ -94,18 +115,26 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
-      setIsActive(false);
+      updateActiveStatus(false);
       console.log("Camera stopped");
     }
   };
 
   const toggleCamera = () => {
-    if (isActive) {
+    if (isActiveRef.current) {
       stopCamera();
     } else {
       startCamera();
     }
   };
+
+  useEffect(() => {
+    // This effect will only run on mount and unmount
+    return () => {
+      console.log("Component unmounting, cleaning up camera");
+      stopCamera();
+    };
+  }, []); // Empty dependency array means this only runs on mount/unmount
 
   useEffect(() => {
     // Check browser support
@@ -123,25 +152,41 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
     // Process frames if callback provided
     let animationFrameId: number;
     const processFrame = () => {
-      if (videoRef.current && isActive && onFrame) {
+      // Increment log counter
+      logCounterRef.current++;
+      
+      if (videoRef.current && isActiveRef.current && onFrame && videoRef.current.readyState === 4) {
+        // Process frame only if video is fully loaded
         onFrame(videoRef.current);
+      } else {
+        // Log only once every 100 frames to significantly reduce console spam
+        if (logCounterRef.current % 100 === 0) {
+          console.log("Frame processing condition not met:", { 
+            videoElementExists: !!videoRef.current, 
+            isActive: isActiveRef.current,
+            readyState: videoRef.current?.readyState,
+            onFrameCallbackExists: !!onFrame 
+          });
+        }
       }
       animationFrameId = requestAnimationFrame(processFrame);
     };
 
     if (onFrame) {
+      console.log("Starting frame processing loop");
       animationFrameId = requestAnimationFrame(processFrame);
     }
 
-    // Cleanup
+    // Only handle cleanup for animation frame, but don't stop camera automatically
     return () => {
       clearTimeout(timer);
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
-      stopCamera();
+      // Only stop the camera if the component is unmounting, not on every effect cleanup
+      // stopCamera() - removed from here
     };
-  }, [onFrame]);
+  }, [onFrame]); // Removed isActive from dependencies to prevent re-running effect when it changes
 
   return (
     <div className="webcam-container w-full">
@@ -153,7 +198,6 @@ const WebcamComponent: React.FC<WebcamComponentProps> = ({ onFrame }) => {
             playsInline
             muted
             className={`w-full h-[300px] md:h-[350px] object-cover bg-muted/50 ${!isActive ? 'hidden' : 'block'}`}
-            style={{ display: isActive ? 'block' : 'none' }}
           />
           
           {!isActive && (

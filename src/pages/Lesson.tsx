@@ -171,14 +171,21 @@ const Lesson = () => {
   };
 
   const toggleWebcam = () => {
-    setShowWebcam(prev => !prev);
-    // Force re-initialization of webcam when toggling back to it
+    console.log("Toggling webcam from current state:", showWebcam ? "showing" : "hidden");
+    // Only create a new key if we're turning the webcam back on
     if (!showWebcam) {
       setWebcamKey(Date.now());
+      console.log("Webcam toggled to ON, new key:", Date.now());
+    } else {
+      console.log("Webcam toggled to OFF");
     }
+    setShowWebcam(prev => !prev);
   };
 
   const handleWebcamFrame = useCallback((videoElement: HTMLVideoElement) => {
+    // Basic validation check first - the WebcamComponent already checks readyState
+    // so we don't need to re-validate here
+    
     // Increment frame counter
     frameCountRef.current += 1;
     frameMetricsRef.current.totalFrames += 1;
