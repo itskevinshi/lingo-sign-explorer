@@ -4,78 +4,73 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Check, X, ChevronRight, ChevronLeft, Camera, Tv } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronLeft, Tv } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import { lessonData } from '@/data/lessonData';
+import { useProgress } from '@/contexts/ProgressContext';
 
-const lessonData = {
-  'alphabet-1': {
-    id: 'alphabet-1',
-    title: 'Letters A-D',
-    letters: ['A', 'B', 'C', 'D']
-  },
-  'alphabet-2': {
-    id: 'alphabet-2',
-    title: 'Letters E-H',
-    letters: ['E', 'F', 'G', 'H']
-  },
-  'alphabet-3': {
-    id: 'alphabet-3',
-    title: 'Letters I-L',
-    letters: ['I', 'J', 'K', 'L']
-  },
-  'alphabet-4': {
-    id: 'alphabet-4',
-    title: 'Letters M-P',
-    letters: ['M', 'N', 'O', 'P']
-  },
-  'alphabet-5': {
-    id: 'alphabet-5',
-    title: 'Letters Q-T',
-    letters: ['Q', 'R', 'S', 'T']
-  },
-  'alphabet-6': {
-    id: 'alphabet-6',
-    title: 'Letters U-Z',
-    letters: ['U', 'V', 'W', 'X', 'Y', 'Z']
-  },
-  'numbers-1': {
-    id: 'numbers-1',
-    title: 'Numbers 1-5',
-    letters: ['1', '2', '3', '4', '5']
-  },
-  'numbers-2': {
-    id: 'numbers-2',
-    title: 'Numbers 6-10',
-    letters: ['6', '7', '8', '9', '10']
-  }
-};
-
-type LessonStatus = 'correct' | 'incorrect' | null;
+type LessonStatus = 'correct' | 'incorrect' | 'skipped' | null;
 
 const Lesson = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { completeLesson, updateLetterAccuracy } = useProgress();
+  
   const [lesson, setLesson] = useState<any>(null);
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const [status, setStatus] = useState<LessonStatus>(null);
-  const [cameraEnabled, setCameraEnabled] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  const [earnedXP, setEarnedXP] = useState(0);
 
   useEffect(() => {
-    if (id && lessonData[id as keyof typeof lessonData]) {
-      setLesson(lessonData[id as keyof typeof lessonData]);
-    } else {
+    if (!id) {
       navigate('/lessons');
+      return;
     }
-  }, [id, navigate]);
+
+    // Find the lesson in our data
+    for (const category of Object.values(lessonData)) {
+      const foundLesson = category.lessons.find(lesson => lesson.id === id);
+      if (foundLesson) {
+        setLesson(foundLesson);
+        // Reset states for a fresh lesson start
+        setCurrentLetterIndex(0);
+        setStatus(null);
+        setAttempts(0);
+        setEarnedXP(0);
+        return;
+      }
+    }
+    
+    // If lesson not found
+    toast({
+      title: "Lesson not found",
+      description: "The requested lesson could not be found.",
+      variant: "destructive"
+    });
+    navigate('/lessons');
+  }, [id, navigate, toast]);
 
   const handleNextLetter = () => {
     if (!lesson) return;
     
-    if (currentLetterIndex < lesson.letters.length - 1) {
+    // If the current letter was answered correctly, add XP
+    if (status === 'correct') {
+      const baseXP = 5;
+      const bonusXP = Math.max(0, 5 - attempts) * 2; // Bonus XP for fewer attempts
+      const letterXP = baseXP + bonusXP;
+      setEarnedXP(prev => prev + letterXP);
+    }
+    
+    if (currentLetterIndex < lesson.content.length - 1) {
       setCurrentLetterIndex(currentLetterIndex + 1);
       setStatus(null);
       setAttempts(0);
+    } else {
+      // Last letter, complete the lesson
+      completeLesson(lesson.id, earnedXP > 0 ? earnedXP : lesson.xp);
     }
   };
 
@@ -88,19 +83,35 @@ const Lesson = () => {
   };
 
   const handleFinishLesson = () => {
+    if (status === 'correct') {
+      const baseXP = 5;
+      const bonusXP = Math.max(0, 5 - attempts) * 2;
+      const letterXP = baseXP + bonusXP;
+      const finalXP = earnedXP + letterXP;
+      completeLesson(lesson.id, finalXP > 0 ? finalXP : lesson.xp);
+    } else {
+      completeLesson(lesson.id, earnedXP > 0 ? earnedXP : Math.floor(lesson.xp / 2));
+    }
     navigate('/lessons');
   };
 
-  // Mock function to simulate sign recognition
-  const handleSignDetection = () => {
+  // Simplified function to check the user's answer - in a real app, this would validate against actual sign recognition
+  const handleAnswerCheck = (isCorrect: boolean) => {
     setAttempts(attempts + 1);
-    // Simulate a random result for demonstration
-    const isCorrect = Math.random() > 0.4;
-    setStatus(isCorrect ? 'correct' : 'incorrect');
+    
+    if (isCorrect) {
+      setStatus('correct');
+      // Update accuracy for this letter
+      const accuracy = Math.max(0, 100 - (attempts * 20)); // Decrease accuracy with attempts
+      updateLetterAccuracy(lesson.content[currentLetterIndex], accuracy);
+    } else {
+      setStatus('incorrect');
+    }
   };
 
-  const toggleCamera = () => {
-    setCameraEnabled(!cameraEnabled);
+  const handleSkip = () => {
+    setStatus('skipped');
+    setAttempts(attempts + 1);
   };
 
   if (!lesson) {
@@ -111,8 +122,8 @@ const Lesson = () => {
     );
   }
 
-  const currentLetter = lesson.letters[currentLetterIndex];
-  const progress = ((currentLetterIndex + 1) / lesson.letters.length) * 100;
+  const currentLetter = lesson.content[currentLetterIndex];
+  const progress = ((currentLetterIndex + 1) / lesson.content.length) * 100;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6 animate-fade-in">
@@ -120,21 +131,11 @@ const Lesson = () => {
         <h1 className="text-3xl font-bold tracking-tight">{lesson.title}</h1>
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground">
-            Practice signing each letter with your webcam
+            Practice signing each letter
           </p>
-          <Button variant="outline" size="sm" onClick={toggleCamera}>
-            {cameraEnabled ? (
-              <>
-                <Camera className="h-4 w-4 mr-2 text-destructive" />
-                Disable Camera
-              </>
-            ) : (
-              <>
-                <Camera className="h-4 w-4 mr-2 text-accent" />
-                Enable Camera
-              </>
-            )}
-          </Button>
+          <div className="flex items-center text-sm text-accent">
+            <span>Earned XP: {earnedXP}</span>
+          </div>
         </div>
       </div>
 
@@ -142,20 +143,31 @@ const Lesson = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            <div className="aspect-video bg-muted flex items-center justify-center relative">
-              {cameraEnabled ? (
-                <div className="w-full h-full bg-black/20 flex items-center justify-center text-white">
-                  <p className="text-sm text-muted-foreground">Camera feed would appear here</p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center space-y-4">
-                  <Camera className="h-12 w-12 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Enable camera to practice signing
-                  </p>
-                </div>
-              )}
+          <CardContent className="p-6 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                For this demo, simply choose if you got it right or wrong:
+              </p>
+              <div className="flex space-x-4 justify-center">
+                <Button 
+                  onClick={() => handleAnswerCheck(true)} 
+                  variant="outline" 
+                  className="flex-1 border-accent text-accent hover:bg-accent/10"
+                  disabled={status !== null}
+                >
+                  <Check className="h-5 w-5 mr-2" />
+                  Got it right
+                </Button>
+                <Button 
+                  onClick={() => handleAnswerCheck(false)} 
+                  variant="outline" 
+                  className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                  disabled={status !== null}
+                >
+                  <X className="h-5 w-5 mr-2" />
+                  Got it wrong
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -175,8 +187,8 @@ const Lesson = () => {
               <CardContent className="p-4 flex items-center justify-center">
                 <div className="flex flex-col items-center text-center">
                   <Tv className="h-6 w-6 mb-2 text-primary" />
-                  <Button variant="outline" className="w-full">
-                    Watch Example
+                  <Button variant="outline" className="w-full" onClick={handleSkip}>
+                    Skip for now
                   </Button>
                 </div>
               </CardContent>
@@ -184,9 +196,15 @@ const Lesson = () => {
             <Card>
               <CardContent className="p-4 flex items-center justify-center">
                 <div className="flex flex-col items-center text-center">
-                  <Camera className="h-6 w-6 mb-2 text-secondary" />
-                  <Button onClick={handleSignDetection} className="w-full" disabled={!cameraEnabled}>
-                    Check My Sign
+                  <div className="h-6 w-6 mb-2 flex items-center justify-center font-medium">
+                    {currentLetterIndex + 1}/{lesson.content.length}
+                  </div>
+                  <Button 
+                    onClick={status === null ? handleSkip : handleNextLetter} 
+                    className="w-full"
+                    variant={status === null ? "outline" : "default"}
+                  >
+                    {status === null ? "Don't know" : "Next"}
                   </Button>
                 </div>
               </CardContent>
@@ -198,13 +216,17 @@ const Lesson = () => {
               <div className="flex items-center">
                 {status === 'correct' ? (
                   <Check className="h-5 w-5 mr-2 text-accent" />
-                ) : (
+                ) : status === 'incorrect' ? (
                   <X className="h-5 w-5 mr-2" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 mr-2" />
                 )}
                 <AlertDescription>
                   {status === 'correct' 
-                    ? 'Great job! Your sign was correct.' 
-                    : `That wasn't quite right. Try adjusting your hand position. (Attempt ${attempts})`}
+                    ? 'Great job! You got it right.' 
+                    : status === 'incorrect'
+                    ? `That wasn't quite right. Try practicing more. (Attempt ${attempts})`
+                    : 'No problem, you can come back to this later.'}
                 </AlertDescription>
               </div>
             </Alert>
@@ -220,12 +242,15 @@ const Lesson = () => {
               Previous
             </Button>
             
-            {currentLetterIndex === lesson.letters.length - 1 ? (
+            {currentLetterIndex === lesson.content.length - 1 ? (
               <Button onClick={handleFinishLesson}>
                 Finish Lesson
               </Button>
             ) : (
-              <Button onClick={handleNextLetter}>
+              <Button 
+                onClick={handleNextLetter}
+                disabled={status === null}
+              >
                 Next
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
