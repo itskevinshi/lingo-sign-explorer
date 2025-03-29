@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -176,22 +177,7 @@ const Lesson = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[70vh] text-center">
-        <div className="max-w-md space-y-4">
-          <h2 className="text-2xl font-bold">Sign in to track your progress</h2>
-          <p className="text-muted-foreground">
-            Create an account or sign in to save your progress as you complete lessons.
-          </p>
-          <Button asChild>
-            <a href="/auth/login">Sign In</a>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+  // Remove the user check - allow guests to access lessons directly
   const currentLetter = lesson.content[currentLetterIndex];
   const progress = ((currentLetterIndex + 1) / lesson.content.length) * 100;
 
@@ -205,6 +191,9 @@ const Lesson = () => {
           </p>
           <div className="flex items-center text-sm text-accent">
             <span>Earned XP: {earnedXP}</span>
+            {!user && (
+              <span className="ml-2 text-muted-foreground">(sign in to save)</span>
+            )}
           </div>
         </div>
       </div>
@@ -358,6 +347,17 @@ const Lesson = () => {
           </div>
         </div>
       </div>
+      
+      {!user && (
+        <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-border">
+          <p className="text-sm text-muted-foreground">
+            <strong>Note:</strong> You're using the app as a guest. Sign in to save your progress and track your achievements.
+          </p>
+          <Button variant="outline" size="sm" className="mt-2" asChild>
+            <a href="/auth/login">Sign In</a>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
