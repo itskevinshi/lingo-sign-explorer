@@ -1,69 +1,129 @@
-# Welcome to your Lovable project
+# Show Me A Sign - An Interactive ASL Learning Platform
 
-## Project info
+## Project Overview
 
-**URL**: https://lovable.dev/projects/63c964cb-b79c-466c-9639-3e61a6792832
+Lingo Sign Explorer is an interactive web application designed to help users learn American Sign Language (ASL) through real-time webcam interaction. Using computer vision and machine learning, the platform provides immediate feedback on sign language gestures, helping users practice and master ASL.
 
-## How can I edit this code?
+### Key Features
 
-There are several ways of editing your application.
+- **Interactive ASL Learning**: Practice ASL signs with real-time feedback through your webcam
+- **Structured Lesson Pathways**: Progress from alphabet to numbers and phrases
+- **User Progress Tracking**: Track your learning journey with XP, achievements, and accuracy metrics
+- **Adaptive Difficulty Levels**: Content organized by beginner, intermediate, and advanced levels
+- **Visual Learning Aids**: Clear demonstrations of signs with practice opportunities
+- **Real-time Sign Recognition**: Advanced ML model detects and evaluates hand signs
 
-**Use Lovable**
+## Technical Architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/63c964cb-b79c-466c-9639-3e61a6792832) and start prompting.
+The application consists of two main components:
 
-Changes made via Lovable will be committed automatically to this repo.
+### 1. Frontend (React + TypeScript)
+- Built with React, TypeScript, and Vite
+- UI components with shadcn/ui and Tailwind CSS
+- Real-time webcam streaming with WebRTC
+- User authentication and progress tracking via Supabase
 
-**Use your preferred IDE**
+### 2. Backend (Python + Flask)
+- Flask-based WebSocket server for processing webcam frames
+- Hand tracking using computer vision (OpenCV)
+- ASL recognition with a trained machine learning model
+- Real-time prediction with both CNN model and geometry-based analysis
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
+- Node.js (v14+) and npm for the frontend
+- Python 3.8+ for the backend server
+- Webcam for interactive features
 
-Follow these steps:
+### Frontend Setup
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone <repository-url>
+cd lingo-sign-explorer
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Backend Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+# Navigate to the server directory
+cd server
 
-**Use GitHub Codespaces**
+# Create a virtual environment (recommended)
+python -m venv venv
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Activate the virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
 
-## What technologies are used for this project?
+# Install required packages
+pip install -r requirements.txt
 
-This project is built with .
+# Start the server
+python app.py
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The server will run at `http://localhost:5000` by default.
 
-## How can I deploy this project?
+## Server Configuration
 
-Simply open [Lovable](https://lovable.dev/projects/63c964cb-b79c-466c-9639-3e61a6792832) and click on Share -> Publish.
+You can modify the server configuration by setting environment variables:
 
-## I want to use a custom domain - is that possible?
+- `PORT`: Server port (default: 5000)
+- `DEBUG`: Enable debug mode (set to "True" or "False")
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Example:
+```bash
+PORT=8080 DEBUG=True python app.py
+```
+
+## Performance Considerations
+
+- Adjust the frame rate and image quality in webcam settings to balance performance
+- Consider downscaling images before sending to reduce bandwidth usage
+- For production use, deploy the backend behind a reverse proxy like Nginx
+
+## Technologies Used
+
+- **Frontend**:
+  - React
+  - TypeScript
+  - Vite
+  - shadcn/ui
+  - Tailwind CSS
+  - WebRTC for webcam
+  - Socket.io for real-time communication
+
+- **Backend**:
+  - Python
+  - Flask
+  - WebSockets (Socket.io)
+  - OpenCV
+  - TensorFlow/Keras
+  - scikit-learn
+
+
+### Development Workflow
+
+**Use your preferred IDE**
+
+```sh
+# Clone the repository
+git clone <repository-url>
+cd lingo-sign-explorer
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
