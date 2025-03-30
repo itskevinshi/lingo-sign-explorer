@@ -14,7 +14,7 @@ export interface WebcamStreamConfig {
 
 // Default configuration
 export const defaultStreamConfig: WebcamStreamConfig = {
-  serverUrl: "http://localhost:5000",
+  serverUrl: "http://localhost:5002",
   frameRate: 10,  // Frames per second to send
   quality: 0.7,   // JPEG quality (0-1)
   width: 320,     // Resized width
