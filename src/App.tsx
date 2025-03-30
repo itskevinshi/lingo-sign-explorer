@@ -9,7 +9,6 @@ import Lessons from "./pages/Lessons";
 import Lesson from "./pages/Lesson";
 import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
-import Community from "./pages/Community";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -35,7 +34,6 @@ const App = () => (
                 <Route path="lessons/:id" element={<Lesson />} />
                 <Route path="progress" element={<Progress />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="community" element={<Community />} />
               </Route>
               <Route path="/auth" element={<AuthLayout />}>
                 <Route path="login" element={<Login />} />
