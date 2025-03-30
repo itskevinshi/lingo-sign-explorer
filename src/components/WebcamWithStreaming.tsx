@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -35,19 +35,35 @@ import {
 
 interface WebcamWithStreamingProps {
   onPrediction?: (prediction: any) => void;
+  initialStreamingState?: boolean;
 }
 
-const WebcamWithStreaming: React.FC<WebcamWithStreamingProps> = ({ onPrediction }) => {
+// Export the component handle type for TypeScript
+export interface WebcamWithStreamingHandle {
+  toggleStreaming: () => void;
+}
+
+const WebcamWithStreaming = forwardRef<WebcamWithStreamingHandle, WebcamWithStreamingProps>(({ 
+  onPrediction,
+  initialStreamingState = true
+}, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const streamManagerRef = useRef<WebcamStreamManager | null>(null);
   
   const [isAccessGranted, setIsAccessGranted] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(initialStreamingState);
   const [error, setError] = useState<string | null>(null);
   const [streamConfig, setStreamConfig] = useState<WebcamStreamConfig>(defaultStreamConfig);
   const [prediction, setPrediction] = useState<any>(null);
+  
+  // Expose the toggleStreaming method to parent components via ref
+  useImperativeHandle(ref, () => ({
+    toggleStreaming: () => {
+      toggleStreaming();
+    }
+  }));
   
   // Initialize the webcam
   const startCamera = async () => {
@@ -107,6 +123,11 @@ const WebcamWithStreaming: React.FC<WebcamWithStreamingProps> = ({ onPrediction 
               .then(() => {
                 console.log("Camera started successfully");
                 setIsActive(true);
+                
+                // If streaming should be active initially, start it
+                if (isStreaming) {
+                  startStreaming();
+                }
               })
               .catch(err => {
                 console.error("Error playing video:", err);
@@ -206,6 +227,7 @@ const WebcamWithStreaming: React.FC<WebcamWithStreamingProps> = ({ onPrediction 
     } else {
       startStreaming();
     }
+    setIsStreaming(prev => !prev);
   };
 
   // Update stream config
@@ -242,6 +264,17 @@ const WebcamWithStreaming: React.FC<WebcamWithStreamingProps> = ({ onPrediction 
     
     return () => clearTimeout(timer);
   }, []);
+
+  // Effect to handle changes to initialStreamingState
+  useEffect(() => {
+    if (isActive) {
+      if (initialStreamingState && !isStreaming) {
+        startStreaming();
+      } else if (!initialStreamingState && isStreaming) {
+        stopStreaming();
+      }
+    }
+  }, [initialStreamingState, isActive]);
 
   return (
     <div className="webcam-container w-full space-y-3">
@@ -415,6 +448,8 @@ const WebcamWithStreaming: React.FC<WebcamWithStreamingProps> = ({ onPrediction 
       )}
     </div>
   );
-};
+});
+
+WebcamWithStreaming.displayName = "WebcamWithStreaming";
 
 export default WebcamWithStreaming;

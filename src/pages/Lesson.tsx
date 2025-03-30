@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,6 +32,8 @@ const Lesson = () => {
   const [webcamKey, setWebcamKey] = useState(Date.now());
   const [webcamSupported, setWebcamSupported] = useState(true);
   const [latestPrediction, setLatestPrediction] = useState<any>(null);
+  const [streamingEnabled, setStreamingEnabled] = useState(true);
+  const webcamRef = useRef<any>(null);
   
   useEffect(() => {
     if (!id) {
@@ -81,6 +84,11 @@ const Lesson = () => {
 
   const handleNextLetter = () => {
     if (!lesson) return;
+    
+    // Toggle streaming when Next is pressed after "Don't know"
+    if (status === 'skipped') {
+      toggleStreaming();
+    }
     
     if (status === 'correct') {
       const baseXP = 5;
@@ -171,6 +179,13 @@ const Lesson = () => {
     setShowWebcam(prev => !prev);
   };
 
+  const toggleStreaming = () => {
+    setStreamingEnabled(prev => !prev);
+    if (webcamRef.current) {
+      webcamRef.current.toggleStreaming();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
@@ -229,7 +244,12 @@ const Lesson = () => {
         <div className="space-y-6">
           {showWebcam ? (
             webcamSupported ? (
-              <WebcamWithStreaming key={webcamKey} onPrediction={handlePrediction} />
+              <WebcamWithStreaming 
+                key={webcamKey} 
+                onPrediction={handlePrediction} 
+                ref={webcamRef}
+                initialStreamingState={streamingEnabled}
+              />
             ) : (
               <Card className="overflow-hidden">
                 <CardContent className="p-6 flex items-center justify-center">
