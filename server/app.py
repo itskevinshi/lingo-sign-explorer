@@ -75,12 +75,16 @@ class SignLanguageModel:
             # Define custom rules for conflicting predictions from main.py
             self.custom_rules = {
                 ("H", "S"): "A",
+                ("U", "B"): "B",
                 ("C", "Y"): "C",
+                ("O", "C"): "C",
                 ("R", "D"): "D",
                 ("B", "F"): "F",
                 ("U", "F"): "F",
                 ("X", "I"): "I",
                 ("X", "Y"): "I",
+                ("R", "I"): "I",
+                ("X", "L"): "L",
                 ("M", "S"): "M",
                 ("M", "X"): "M",
                 ("N", "M"): "N",
@@ -146,6 +150,9 @@ class SignLanguageModel:
                 # Determine final letter using combined approach
                 final_letter = self._determine_final_letter(model_letter, model_confidence, geometry_letter)
                 
+              
+
+
                 # Only return a prediction if we're confident enough
                 if model_confidence > 0.3 or final_letter:
                     result["letter"] = final_letter or model_letter
@@ -361,7 +368,13 @@ def handle_frame(data):
                 # Send prediction back to client
                 emit('prediction', {
                     'type': 'prediction',
-                    'prediction': prediction,
+                    'prediction': {
+                        'letter': prediction['letter'],
+                        'confidence': prediction['confidence'],
+                        'model_prediction': prediction['letter'],
+                        'geometry_prediction': prediction['geometry_letter'],
+                    },
+                    'processed_frame': image_data,
                     'timestamp': data.get('timestamp', time.time() * 1000)
                 })
                 
