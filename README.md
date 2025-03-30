@@ -23,8 +23,15 @@ The application consists of two main components:
 - Real-time webcam streaming with WebRTC
 - User authentication and progress tracking via Supabase
 
+  
+
 ### 2. Backend (Python + Flask)
 - Flask-based WebSocket server for processing webcam frames
 - Hand tracking using computer vision (OpenCV)
 - ASL recognition with a trained machine learning model
 - Real-time prediction with both CNN model and geometry-based analysis
+
+<img src="Backend1.png" alt="Model with high confidence" width="500"/>
+<img src="Backend2.png" alt="Model and geometry agree" width="500"/>
+<img src="Backend3.png" alt="Model medium confidence and geometry mixed" width="500"/>
+
