@@ -1,9 +1,9 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Hand, BookOpen, Award, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import TypedText from '@/components/TypedText';
 
 const Home = () => {
   return (
@@ -13,12 +13,7 @@ const Home = () => {
           <Hand size={32} className="animate-pulse-light" />
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-          Learn American Sign Language <span className="text-accent"><TypedText 
-            words={["Interactively", "Effectively", "Visually", "Confidently", "Intuitively"]} 
-            typingSpeed={100}
-            deletingSpeed={60}
-            pauseTime={2000}
-          /></span>
+          Learn American Sign Language <span className="text-accent">Interactively</span>
         </h1>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
           Master ASL through our interactive platform with real-time feedback and structured lessons

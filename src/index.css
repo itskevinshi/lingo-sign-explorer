@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,15 +79,5 @@
   
   .difficulty-advanced {
     @apply bg-rose-500/10 text-rose-500;
-  }
-
-  .typed-cursor::after {
-    content: '|';
-    animation: cursor-blink 1s step-end infinite;
-  }
-  
-  @keyframes cursor-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
   }
 }
