@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { lessonData } from '@/data/lessonData';
 import { useProgress } from '@/contexts/ProgressContext';
 import { useAuth } from '@/contexts/AuthContext';
-import WebcamComponent from '@/components/WebcamComponent';
+import WebcamWithStreaming from '@/components/WebcamWithStreaming';
 import { isCameraSupported } from '@/lib/webcam';
 
 type LessonStatus = 'correct' | 'incorrect' | 'skipped' | null;
@@ -30,29 +30,18 @@ const Lesson = () => {
   const [showWebcam, setShowWebcam] = useState(true);
   const [webcamKey, setWebcamKey] = useState(Date.now());
   const [webcamSupported, setWebcamSupported] = useState(true);
+  const [latestPrediction, setLatestPrediction] = useState<any>(null);
   
-  const frameCountRef = useRef(0);
-  const lastLogTimeRef = useRef(Date.now());
-  const frameMetricsRef = useRef({
-    totalFrames: 0,
-    framesProcessed: 0,
-    avgWidth: 0,
-    avgHeight: 0,
-    startTime: Date.now(),
-  });
-
   useEffect(() => {
     if (!id) {
       navigate('/lessons');
       return;
     }
 
-    // Find the lesson in our data
     for (const category of Object.values(lessonData)) {
       const foundLesson = category.lessons.find(lesson => lesson.id === id);
       if (foundLesson) {
         setLesson(foundLesson);
-        // Reset states for a fresh lesson start
         setCurrentLetterIndex(0);
         setStatus(null);
         setAttempts(0);
@@ -62,7 +51,6 @@ const Lesson = () => {
       }
     }
     
-    // If lesson not found
     toast({
       title: "Lesson not found",
       description: "The requested lesson could not be found.",
@@ -76,17 +64,27 @@ const Lesson = () => {
   }, [progressLoading]);
 
   useEffect(() => {
-    // Check if webcam is supported when component mounts
     setWebcamSupported(isCameraSupported());
   }, []);
+
+  const handlePrediction = (prediction: any) => {
+    setLatestPrediction(prediction);
+    
+    if (lesson && currentLetterIndex !== null && status === null) {
+      const currentLetter = lesson.content[currentLetterIndex];
+      
+      if (prediction.letter === currentLetter && prediction.confidence > 0.75) {
+        handleAnswerCheck(true);
+      }
+    }
+  };
 
   const handleNextLetter = () => {
     if (!lesson) return;
     
-    // If the current letter was answered correctly, add XP
     if (status === 'correct') {
       const baseXP = 5;
-      const bonusXP = Math.max(0, 5 - attempts) * 2; // Bonus XP for fewer attempts
+      const bonusXP = Math.max(0, 5 - attempts) * 2;
       const letterXP = baseXP + bonusXP;
       setEarnedXP(prev => prev + letterXP);
     }
@@ -96,12 +94,9 @@ const Lesson = () => {
       setStatus(null);
       setAttempts(0);
     } else {
-      // Last letter, complete the lesson
       if (user) {
-        // Only save progress if user is logged in
         completeLesson(lesson.id, earnedXP > 0 ? earnedXP : lesson.xp);
       } else {
-        // Show toast for guest users
         toast({
           title: "Lesson completed!",
           description: `You earned ${earnedXP > 0 ? earnedXP : lesson.xp} XP, but progress isn't saved. Sign in to track your progress.`,
@@ -123,7 +118,6 @@ const Lesson = () => {
     
     let finalXP = earnedXP;
     
-    // If the last letter was answered correctly, add its XP too
     if (status === 'correct') {
       const baseXP = 5;
       const bonusXP = Math.max(0, 5 - attempts) * 2;
@@ -131,16 +125,13 @@ const Lesson = () => {
       finalXP += letterXP;
     }
     
-    // If no XP was earned (all skipped or incorrect), use the default lesson XP
     if (finalXP === 0) {
       finalXP = lesson.xp;
     }
     
     if (user) {
-      // Only save progress if user is logged in
       completeLesson(lesson.id, finalXP);
     } else {
-      // Show toast for guest users
       toast({
         title: "Lesson completed!",
         description: `You earned ${finalXP} XP, but progress isn't saved. Sign in to track your progress.`,
@@ -155,9 +146,8 @@ const Lesson = () => {
     
     if (isCorrect) {
       setStatus('correct');
-      // Update accuracy for this letter (only if user is logged in)
       if (user) {
-        const accuracy = Math.max(0, 100 - (attempts * 20)); // Decrease accuracy with attempts
+        const accuracy = Math.max(0, 100 - (attempts * 20));
         updateLetterAccuracy(lesson.content[currentLetterIndex], accuracy);
       }
     } else {
@@ -172,7 +162,6 @@ const Lesson = () => {
 
   const toggleWebcam = () => {
     console.log("Toggling webcam from current state:", showWebcam ? "showing" : "hidden");
-    // Only create a new key if we're turning the webcam back on
     if (!showWebcam) {
       setWebcamKey(Date.now());
       console.log("Webcam toggled to ON, new key:", Date.now());
@@ -181,86 +170,6 @@ const Lesson = () => {
     }
     setShowWebcam(prev => !prev);
   };
-
-  const handleWebcamFrame = useCallback((videoElement: HTMLVideoElement) => {
-    // Basic validation check first - the WebcamComponent already checks readyState
-    // so we don't need to re-validate here
-    
-    // Increment frame counter
-    frameCountRef.current += 1;
-    frameMetricsRef.current.totalFrames += 1;
-    
-    const currentTime = Date.now();
-    const elapsedSinceStart = (currentTime - frameMetricsRef.current.startTime) / 1000;
-    
-    // Process frame metrics
-    if (videoElement.videoWidth && videoElement.videoHeight) {
-      frameMetricsRef.current.framesProcessed += 1;
-      frameMetricsRef.current.avgWidth = 
-        (frameMetricsRef.current.avgWidth * (frameMetricsRef.current.framesProcessed - 1) + videoElement.videoWidth) / 
-        frameMetricsRef.current.framesProcessed;
-      frameMetricsRef.current.avgHeight = 
-        (frameMetricsRef.current.avgHeight * (frameMetricsRef.current.framesProcessed - 1) + videoElement.videoHeight) / 
-        frameMetricsRef.current.framesProcessed;
-    }
-    
-    // Log every 3 seconds or if it's the first frame
-    if (currentTime - lastLogTimeRef.current > 3000 || frameMetricsRef.current.totalFrames === 1) {
-      const fps = frameCountRef.current / ((currentTime - lastLogTimeRef.current) / 1000);
-      const overallFps = frameMetricsRef.current.totalFrames / elapsedSinceStart;
-      
-      console.log('Webcam Frame Stats:', {
-        frameSize: `${videoElement.videoWidth}x${videoElement.videoHeight}`,
-        currentFps: fps.toFixed(1),
-        overallFps: overallFps.toFixed(1),
-        totalFrames: frameMetricsRef.current.totalFrames,
-        avgFrameSize: `${frameMetricsRef.current.avgWidth.toFixed(0)}x${frameMetricsRef.current.avgHeight.toFixed(0)}`,
-        readyState: videoElement.readyState,
-        timeElapsed: `${elapsedSinceStart.toFixed(1)}s`,
-      });
-      
-      // Sample frame data - only log occasionally to avoid flooding the console
-      if (frameMetricsRef.current.totalFrames % 30 === 0) {
-        try {
-          // Create a canvas to capture the current frame
-          const canvas = document.createElement('canvas');
-          canvas.width = videoElement.videoWidth;
-          canvas.height = videoElement.videoHeight;
-          const ctx = canvas.getContext('2d');
-          
-          if (ctx) {
-            // Draw the current video frame to the canvas
-            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-            
-            // Get the frame as a base64 encoded string (small size for logging)
-            const smallCanvas = document.createElement('canvas');
-            smallCanvas.width = 100;  // Small thumbnail for logging
-            smallCanvas.height = 75;
-            const smallCtx = smallCanvas.getContext('2d');
-            
-            if (smallCtx) {
-              smallCtx.drawImage(videoElement, 0, 0, 100, 75);
-              console.log('Frame Sample Size:', {
-                thumbnailSize: '100x75',
-                sampleDataSize: Math.floor(smallCanvas.toDataURL('image/jpeg', 0.5).length / 1024) + 'KB'
-              });
-              // Log only the data size, not the actual image data to avoid console spam
-              // In real processing, here you would send the full-sized frame
-            }
-          }
-        } catch (err) {
-          console.error('Error capturing frame:', err);
-        }
-      }
-      
-      // Reset the frame counter and update last log time
-      frameCountRef.current = 0;
-      lastLogTimeRef.current = currentTime;
-    }
-    
-    // Here you would add any actual frame processing for sign detection
-    // For example: if (currentLetterIndex !== null && lesson) { processSignDetection(videoElement, lesson.content[currentLetterIndex]); }
-  }, []);
 
   if (isLoading) {
     return (
@@ -320,7 +229,7 @@ const Lesson = () => {
         <div className="space-y-6">
           {showWebcam ? (
             webcamSupported ? (
-              <WebcamComponent key={webcamKey} onFrame={handleWebcamFrame} />
+              <WebcamWithStreaming key={webcamKey} onPrediction={handlePrediction} />
             ) : (
               <Card className="overflow-hidden">
                 <CardContent className="p-6 flex items-center justify-center">
