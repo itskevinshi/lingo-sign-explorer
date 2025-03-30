@@ -1,7 +1,7 @@
-
 /**
  * Utility functions for streaming webcam data to a Flask backend
  */
+import { io, Socket } from 'socket.io-client';
 
 // Configuration options for the webcam stream
 export interface WebcamStreamConfig {
@@ -23,7 +23,7 @@ export const defaultStreamConfig: WebcamStreamConfig = {
 
 // Class for managing the webcam stream connection
 export class WebcamStreamManager {
-  private socket: WebSocket | null = null;
+  private socket: Socket | null = null;
   private videoElement: HTMLVideoElement | null = null;
   private canvas: HTMLCanvasElement;
   private context: CanvasRenderingContext2D | null;
@@ -54,50 +54,50 @@ export class WebcamStreamManager {
     this.canvas.width = this.config.width;
     this.canvas.height = this.config.height;
 
-    // Create WebSocket connection
+    // Create Socket.IO connection
     try {
-      const wsUrl = this.config.serverUrl.replace(/^http/, 'ws') + '/stream';
-      console.log(`Connecting to WebSocket server at ${wsUrl}`);
-      this.socket = new WebSocket(wsUrl);
+      console.log(`Connecting to Socket.IO server at ${this.config.serverUrl}`);
+      this.socket = io(this.config.serverUrl, {
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+      });
 
-      this.socket.onopen = this.handleSocketOpen.bind(this);
-      this.socket.onmessage = this.handleSocketMessage.bind(this);
-      this.socket.onerror = this.handleSocketError.bind(this);
-      this.socket.onclose = this.handleSocketClose.bind(this);
+      this.socket.on('connect', this.handleSocketOpen.bind(this));
+      this.socket.on('prediction', this.handlePrediction.bind(this));
+      this.socket.on('error', this.handleServerError.bind(this));
+      this.socket.on('disconnect', this.handleSocketClose.bind(this));
+      this.socket.on('connect_error', this.handleConnectError.bind(this));
     } catch (error) {
-      console.error("Failed to create WebSocket connection:", error);
+      console.error("Failed to create Socket.IO connection:", error);
     }
   }
 
   // Handle socket open event
   private handleSocketOpen(): void {
-    console.log("WebSocket connection established");
+    console.log("Socket.IO connection established");
     this.streaming = true;
     this.startStreaming();
   }
 
-  // Handle incoming socket messages (predictions)
-  private handleSocketMessage(event: MessageEvent): void {
-    try {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'prediction') {
-        console.log("Received prediction:", data.prediction);
-        
-        if (this.onPredictionCallback) {
-          this.onPredictionCallback(data.prediction);
-        }
-      } else if (data.type === 'error') {
-        console.error("Server error:", data.message);
-      }
-    } catch (error) {
-      console.error("Error parsing server message:", error);
+  // Handle prediction messages
+  private handlePrediction(data: any): void {
+    console.log("Received prediction:", data.prediction);
+    
+    if (this.onPredictionCallback) {
+      this.onPredictionCallback(data.prediction);
     }
   }
 
-  // Handle socket errors
-  private handleSocketError(error: Event): void {
-    console.error("WebSocket error:", error);
+  // Handle server errors
+  private handleServerError(data: any): void {
+    console.error("Server error:", data.message);
+  }
+
+  // Handle connect errors
+  private handleConnectError(error: Error): void {
+    console.error("Socket.IO connection error:", error);
     this.streaming = false;
     if (this.frameInterval) {
       clearInterval(this.frameInterval);
@@ -106,8 +106,8 @@ export class WebcamStreamManager {
   }
 
   // Handle socket close
-  private handleSocketClose(event: CloseEvent): void {
-    console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+  private handleSocketClose(reason: string): void {
+    console.log(`Socket.IO connection closed: ${reason}`);
     this.streaming = false;
     if (this.frameInterval) {
       clearInterval(this.frameInterval);
@@ -155,11 +155,10 @@ export class WebcamStreamManager {
         .replace('data:image/jpeg;base64,', '');
       
       // Send the frame with additional metadata
-      this.socket.send(JSON.stringify({
-        type: 'frame',
+      this.socket.emit('frame', {
         image: base64Image,
         timestamp: Date.now()
-      }));
+      });
     } catch (error) {
       console.error("Error capturing or sending frame:", error);
     }
@@ -177,7 +176,7 @@ export class WebcamStreamManager {
     this.streaming = false;
     
     if (this.socket) {
-      this.socket.close();
+      this.socket.disconnect();
       this.socket = null;
     }
     
