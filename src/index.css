@@ -68,4 +68,16 @@
   .card-hover {
     @apply transition-all duration-300 hover:shadow-md hover:shadow-accent/20 hover:-translate-y-1;
   }
+  
+  .difficulty-beginner {
+    @apply bg-emerald-500/10 text-emerald-500;
+  }
+  
+  .difficulty-intermediate {
+    @apply bg-amber-500/10 text-amber-500;
+  }
+  
+  .difficulty-advanced {
+    @apply bg-rose-500/10 text-rose-500;
+  }
 }

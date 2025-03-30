@@ -12,6 +12,7 @@ import { lessonData } from '@/data/lessonData';
 import { useProgress } from '@/contexts/ProgressContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { LessonItem } from '@/types/lessons';
+import PathwaysSection from '@/components/lessons/PathwaysSection';
 
 const Lessons = () => {
   const [selectedCategory, setSelectedCategory] = useState('alphabet');
@@ -80,6 +81,9 @@ const Lessons = () => {
           </TabsContent>
         ))}
       </Tabs>
+      
+      {/* Add the PathwaysSection component here */}
+      <PathwaysSection />
     </div>
   );
 };
