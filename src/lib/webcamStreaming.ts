@@ -83,8 +83,31 @@ export class WebcamStreamManager {
 
   // Handle prediction messages
   private handlePrediction(data: any): void {
+    // Log the entire prediction object
     console.log("Received prediction:", data.prediction);
     
+    // Log individual components
+    if (data.prediction.letter) {
+      console.log("Detected letter:", data.prediction.letter);
+    }
+    
+    if (data.prediction.confidence) {
+      console.log("Confidence:", data.prediction.confidence.toFixed(2));
+    }
+    
+    if (data.prediction.model_prediction) {
+      console.log("Model predicted:", data.prediction.model_prediction);
+    }
+    
+    if (data.prediction.geometry_prediction) {
+      console.log("Geometry predicted letter:", data.prediction.geometry_prediction);
+    }
+    
+    if (data.prediction.geometry_word) {
+      console.log("Geometry predicted word:", data.prediction.geometry_word);
+    }
+    
+    // Pass the complete prediction data to the callback
     if (this.onPredictionCallback) {
       this.onPredictionCallback(data.prediction);
     }

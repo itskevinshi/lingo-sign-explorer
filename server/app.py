@@ -48,6 +48,12 @@ stats = {
     'processing_times': []
 }
 
+# Add these variables at the global scope (outside any function)
+current_geometry_word = ""
+last_letter_time = 0
+letter_pause_threshold = 1.0  # seconds to wait before considering a new letter
+space_pause_threshold = 2.5   # seconds to wait before adding a space
+
 # Actual sign language detection model using the secret-sauce
 class SignLanguageModel:
     def __init__(self):
@@ -150,21 +156,118 @@ class SignLanguageModel:
                 # Determine final letter using combined approach
                 final_letter = self._determine_final_letter(model_letter, model_confidence, geometry_letter)
                 
-              
+                # Get the geometry word prediction from the same hand gesture
+                geometry_word = self._get_geometry_word(lmList)
+                print("GOT GEOMETRY WORD: ", geometry_word)
 
-
+                # Call your word prediction method - this would be your implementation
+                # that takes the same hand landmarks but looks for word gestures instead of letter gestures
+               
+                
                 # Only return a prediction if we're confident enough
                 if model_confidence > 0.3 or final_letter:
                     result["letter"] = final_letter or model_letter
                     result["confidence"] = float(model_confidence)
                     result["alternatives"] = alternatives
                     result["geometry_letter"] = geometry_letter
+                    result["geometry_word"] = geometry_word  # The single gesture word prediction
             
             return result
             
         except Exception as e:
             logger.error(f"Error in prediction: {e}")
             return {"letter": None, "confidence": 0, "error": str(e)}
+    
+    def _get_geometry_word(self, lmList):
+        """
+        Return a string with one of the recognized one-handed static "word" shapes:
+        'ILY', 'SHAKA', 'ROCK ON', 'OK', 'THUMBS UP', 'THANK YOU'
+        
+        Return None if no shape is recognized or landmarks are insufficient.
+        """
+        try:
+            print("processing word")
+            # 1) Ensure we have enough landmarks
+            if not lmList or len(lmList) < 21:
+                print("quit early")
+                return None
+
+            # We'll produce a 5-element array, one for each finger:
+            # [thumbState, indexState, middleState, ringState, pinkyState].
+            # '1' means extended, '0' means folded.
+
+            # 2) Determine thumb state
+            #    Adjust the comparison for your orientation as needed:
+            thumb_state = 0
+            if lmList[4][1] < (lmList[3][1] - 20):
+                thumb_state = 1
+
+            # 3) For the other four fingers, use a simplified approach:
+            #    Only '1.0' in your geometry check => extended(1), else folded(0).
+            finger_dip = [6,  10, 14, 18]
+            finger_pip = [7,  11, 15, 19]
+            finger_tip = [8,  12, 16, 20]
+
+            fingers = [thumb_state]  # start with thumb
+            for i in range(4):  # index=0 => Index finger, 1 => Middle, etc.
+                val = None
+                if (lmList[finger_tip[i]][1] + 25 < lmList[finger_dip[i]][1]
+                    and lmList[16][2] < lmList[20][2]):
+                    val = 0.25
+                elif lmList[finger_tip[i]][2] > lmList[finger_dip[i]][2]:
+                    val = 0.0
+                elif lmList[finger_tip[i]][2] < lmList[finger_pip[i]][2]:
+                    val = 1.0
+                elif (lmList[finger_tip[i]][1] > lmList[finger_pip[i]][1]
+                    and lmList[finger_tip[i]][1] > lmList[finger_dip[i]][1]):
+                    val = 0.5
+                else:
+                    val = 0.0  # fallback
+
+                # Convert fractional states (0.25, 0.5) => 0, 1.0 => 1
+                if val == 1.0:
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+
+            # Now `fingers` might look like [1,0,0,0,1] etc.
+            print("fingers:", fingers)
+
+            # 4) Check specialized shapes:
+
+            # THANK YOU => all 5 digits extended
+            if fingers == [1, 1, 1, 1, 1]:
+                return "THANK YOU"
+
+            # THUMBS UP => only the thumb extended
+            elif fingers == [1, 0, 0, 0, 0]:
+                return "THUMBS UP"
+
+            # ILY => thumb=1, index=1, middle=0, ring=0, pinky=1
+            elif fingers == [1, 1, 0, 0, 1]:
+                return "ILY"
+
+            # SHAKA => thumb=1, pinky=1, and the other three fingers folded
+            elif fingers == [1, 0, 0, 0, 1]:
+                return "SHAKA"
+
+            # ROCK ON => thumb=0, index=1, pinky=1 (middle=0, ring=0)
+            elif fingers == [0, 1, 0, 0, 1]:
+                return "ROCK ON"
+
+            # OK => last three fingers extended (and we ignore thumb/index)
+            elif fingers[2] == 1 and fingers[3] == 1 and fingers[4] == 1:
+                return "OK"
+
+            # 5) If none matched, return None
+            return None
+
+        except Exception as e:
+            logger.error(f"Error in geometry word detection: {e}")
+            return None
+
+
+
     
     def _get_geometry_prediction(self, lmList):
         """Geometry-based prediction using hand landmarks based on exact main.py implementation"""
@@ -305,6 +408,7 @@ class SignLanguageModel:
         # If still undecided, use model prediction
         return model_letter
 
+
 # Initialize the model
 model = SignLanguageModel()
 
@@ -332,6 +436,8 @@ def handle_disconnect():
 
 @socketio.on('frame')
 def handle_frame(data):
+    global current_geometry_word, last_letter_time
+    
     # Update stats
     stats['frames_received'] += 1
     
@@ -365,6 +471,29 @@ def handle_frame(data):
             if model.ready:
                 prediction = model.predict(frame)
                 
+                # Word tracking logic
+                current_time = time.time()
+                
+                if prediction['geometry_letter']:  # If a letter was detected
+                    time_since_last_letter = current_time - last_letter_time
+                    
+                    # Check if it's a new letter (avoid duplicates from continuous detection)
+                    if time_since_last_letter > letter_pause_threshold:
+                        # Check if we should add a space first
+                        if time_since_last_letter > space_pause_threshold and current_geometry_word:
+                            current_geometry_word += " "
+                        
+                        # Add the new letter to the word
+                        current_geometry_word += prediction['geometry_letter']
+                        last_letter_time = current_time
+                
+                # Get the geometry word prediction from the same hand gesture
+                geometry_word = prediction['geometry_word']
+
+                # Call your word prediction method - this would be your implementation
+                # that takes the same hand landmarks but looks for word gestures instead of letter gestures
+                
+                
                 # Send prediction back to client
                 emit('prediction', {
                     'type': 'prediction',
@@ -373,6 +502,7 @@ def handle_frame(data):
                         'confidence': prediction['confidence'],
                         'model_prediction': prediction['letter'],
                         'geometry_prediction': prediction['geometry_letter'],
+                        'geometry_word': geometry_word  # The single gesture word prediction
                     },
                     'processed_frame': image_data,
                     'timestamp': data.get('timestamp', time.time() * 1000)
