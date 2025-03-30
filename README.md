@@ -23,7 +23,7 @@ The application consists of two main components:
 - Real-time webcam streaming with WebRTC
 - User authentication and progress tracking via Supabase
 
-  
+<img src="LessonImage.png" alt="Lessons" width="500"/>
 
 ### 2. Backend (Python + Flask)
 - Flask-based WebSocket server for processing webcam frames
