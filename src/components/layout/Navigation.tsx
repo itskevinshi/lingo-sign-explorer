@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Hand, BookOpen, BarChart, User, Menu, X, Loader2 } from 'lucide-react';
+import { Hand, BookOpen, BarChart, User, Menu, X, Loader2, Users } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ const navItems = [
   { name: 'Home', path: '/', icon: <Hand className="h-5 w-5" /> },
   { name: 'Lessons', path: '/lessons', icon: <BookOpen className="h-5 w-5" /> },
   { name: 'Progress', path: '/progress', icon: <BarChart className="h-5 w-5" /> },
+  { name: 'Community', path: '/community', icon: <Users className="h-5 w-5" /> },
   { name: 'Profile', path: '/profile', icon: <User className="h-5 w-5" /> },
 ];
 
