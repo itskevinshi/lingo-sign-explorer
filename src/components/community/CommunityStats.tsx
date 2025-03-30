@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { Users, Trophy, Brain, Award, Activity } from 'lucide-react';
+import { Json } from '@/integrations/supabase/types';
 
 interface CommunityStatsData {
   totalUsers: number;
@@ -15,39 +15,42 @@ interface CommunityStatsData {
   weeklySignsPracticed: number;
 }
 
+interface UserProgressData {
+  xp_earned: number;
+  completed_lessons: Json;
+  letter_accuracy?: Record<string, number>;
+}
+
 export const CommunityStats = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['communityStats'],
     queryFn: async (): Promise<CommunityStatsData> => {
-      // Get total users count
       const { count: totalUsers, error: usersError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
       if (usersError) throw usersError;
 
-      // Get total XP and lessons completed
       const { data: progressData, error: progressError } = await supabase
         .from('user_progress')
-        .select('xp_earned, completed_lessons');
+        .select('xp_earned, completed_lessons, letter_accuracy');
 
       if (progressError) throw progressError;
 
-      // Calculate total XP
-      const totalXp = progressData.reduce((sum, user) => sum + user.xp_earned, 0);
+      const typedProgressData = progressData as unknown as UserProgressData[];
+
+      const totalXp = typedProgressData.reduce((sum, user) => sum + user.xp_earned, 0);
       
-      // Calculate total lessons completed
-      const totalLessonsCompleted = progressData.reduce((sum, user) => {
+      const totalLessonsCompleted = typedProgressData.reduce((sum, user) => {
         const completedLessonsCount = user.completed_lessons ? Object.keys(user.completed_lessons).length : 0;
         return sum + completedLessonsCount;
       }, 0);
 
-      // Calculate most mastered letters
       const letterCounts: Record<string, number> = {};
-      progressData.forEach(user => {
-        const letterAccuracy = user.letter_accuracy as Record<string, number> || {};
+      typedProgressData.forEach(user => {
+        const letterAccuracy = user.letter_accuracy || {};
         Object.entries(letterAccuracy).forEach(([letter, accuracy]) => {
-          if (accuracy >= 80) { // Consider mastered if accuracy is at least 80%
+          if (accuracy >= 80) {
             letterCounts[letter] = (letterCounts[letter] || 0) + 1;
           }
         });
@@ -58,8 +61,6 @@ export const CommunityStats = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      // For demo purposes, use a fixed number for weekly signs practiced
-      // In a real application, you might track this separately in the database
       const weeklySignsPracticed = Math.min(10000, totalLessonsCompleted * 15);
 
       return {
@@ -70,7 +71,7 @@ export const CommunityStats = () => {
         weeklySignsPracticed
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   if (error) {
@@ -79,7 +80,6 @@ export const CommunityStats = () => {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {/* Total Users */}
       <StatsCard
         title="Learners"
         value={isLoading ? undefined : data?.totalUsers.toLocaleString()}
@@ -88,7 +88,6 @@ export const CommunityStats = () => {
         isLoading={isLoading}
       />
 
-      {/* Total XP */}
       <StatsCard
         title="Collective XP"
         value={isLoading ? undefined : data?.totalXp.toLocaleString()}
@@ -97,7 +96,6 @@ export const CommunityStats = () => {
         isLoading={isLoading}
       />
 
-      {/* Total Lessons Completed */}
       <StatsCard
         title="Lessons Completed"
         value={isLoading ? undefined : data?.totalLessonsCompleted.toLocaleString()}
@@ -106,7 +104,6 @@ export const CommunityStats = () => {
         isLoading={isLoading}
       />
 
-      {/* Weekly Signs Practiced */}
       <StatsCard
         title="Signs This Week"
         value={isLoading ? undefined : data?.weeklySignsPracticed.toLocaleString()}
@@ -115,7 +112,6 @@ export const CommunityStats = () => {
         isLoading={isLoading}
       />
 
-      {/* Most Mastered Letters */}
       <Card className="col-span-full">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg font-medium">Most Mastered Signs</CardTitle>
@@ -138,7 +134,6 @@ export const CommunityStats = () => {
           ) : data?.mostMasteredLetters.length ? (
             <div className="space-y-4">
               {data.mostMasteredLetters.map((item, i) => {
-                // Calculate percentage relative to total users
                 const percentage = Math.min(100, Math.round((item.count / data.totalUsers) * 100)) || 0;
                 
                 return (
