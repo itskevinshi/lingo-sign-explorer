@@ -1,15 +1,21 @@
-
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import base64
 import numpy as np
-import cv2
 import logging
 import time
 import os
 from io import BytesIO
 from PIL import Image
+
+# Try importing OpenCV with error handling for missing dependencies
+try:
+    import cv2
+except ImportError as e:
+    print(f"Warning: OpenCV import error: {e}")
+    print("You may need to install a different OpenCV variant like 'opencv-contrib-python-headless'")
+    cv2 = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -33,8 +39,10 @@ stats = {
 class SignLanguageModel:
     def __init__(self):
         logger.info("Initializing sign language detection model...")
-        # TODO: Load your actual model here
-        self.ready = True
+        # Check if OpenCV is available
+        self.ready = cv2 is not None
+        if not self.ready:
+            logger.warning("OpenCV is not available. Using fallback mode.")
         
     def predict(self, frame):
         # TODO: Replace with your actual model prediction
@@ -94,41 +102,50 @@ def handle_frame(data):
             return
             
         # Decode base64 image
-        image_bytes = base64.b64decode(image_data)
-        
-        # Convert to image
-        image = Image.open(BytesIO(image_bytes))
-        
-        # Convert to OpenCV format
-        frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        
-        # Run prediction
-        if model.ready:
-            prediction = model.predict(frame)
+        try:
+            image_bytes = base64.b64decode(image_data)
             
-            # Send prediction back to client
-            emit('prediction', {
-                'type': 'prediction',
-                'prediction': prediction,
-                'timestamp': data.get('timestamp', time.time() * 1000)
-            })
+            # Convert to image
+            image = Image.open(BytesIO(image_bytes))
             
-            # Update stats
-            stats['frames_processed'] += 1
-            processing_time = time.time() - start_time
-            stats['processing_times'].append(processing_time)
-            
-            # Keep only the last 100 processing times
-            if len(stats['processing_times']) > 100:
-                stats['processing_times'] = stats['processing_times'][-100:]
+            # Convert to OpenCV format if available
+            if cv2 is not None:
+                frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+            else:
+                # Fallback if OpenCV not available
+                frame = np.array(image)
                 
-            # Log occasionally
-            if stats['frames_processed'] % 50 == 0:
-                avg_time = sum(stats['processing_times']) / len(stats['processing_times'])
-                logger.info(f"Processed {stats['frames_processed']} frames. Avg time: {avg_time*1000:.2f}ms")
+            # Run prediction
+            if model.ready:
+                prediction = model.predict(frame)
                 
-        else:
-            emit('error', {'message': 'Model not ready'})
+                # Send prediction back to client
+                emit('prediction', {
+                    'type': 'prediction',
+                    'prediction': prediction,
+                    'timestamp': data.get('timestamp', time.time() * 1000)
+                })
+                
+                # Update stats
+                stats['frames_processed'] += 1
+                processing_time = time.time() - start_time
+                stats['processing_times'].append(processing_time)
+                
+                # Keep only the last 100 processing times
+                if len(stats['processing_times']) > 100:
+                    stats['processing_times'] = stats['processing_times'][-100:]
+                    
+                # Log occasionally
+                if stats['frames_processed'] % 50 == 0:
+                    avg_time = sum(stats['processing_times']) / len(stats['processing_times'])
+                    logger.info(f"Processed {stats['frames_processed']} frames. Avg time: {avg_time*1000:.2f}ms")
+                    
+            else:
+                emit('error', {'message': 'Model not ready'})
+                
+        except Exception as e:
+            logger.error(f"Error processing image data: {str(e)}")
+            emit('error', {'message': f'Error processing image data: {str(e)}'})
             
     except Exception as e:
         logger.error(f"Error processing frame: {str(e)}")
