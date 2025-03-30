@@ -61,6 +61,7 @@ class SignLanguageModel:
         try:
             # Set the correct model path - use the one in secret-sauce/models
             model_path = os.path.join(secret_sauce_path, 'models', 'asl_model.h5')
+            print("MODEL PATH: ", model_path)
             
             # Initialize the hand detector with ASL recognition
             self.detector = handDetector(detectionCon=0.5, use_asl=True)
@@ -391,7 +392,7 @@ def handle_frame(data):
 
 if __name__ == '__main__':
     # Get port from environment variable or use default
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5002))
     
     logger.info(f"Starting server on port {port}")
     
