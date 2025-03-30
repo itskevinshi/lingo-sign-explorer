@@ -68,4 +68,49 @@
   .card-hover {
     @apply transition-all duration-300 hover:shadow-md hover:shadow-accent/20 hover:-translate-y-1;
   }
+  
+  .animated-gradient {
+    @apply relative overflow-hidden;
+  }
+  
+  .animated-gradient::before {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-br from-secondary/10 via-accent/5 to-primary/10 opacity-70 z-[-1];
+    background-size: 200% 200%;
+    animation: gradientAnimation 15s ease infinite;
+  }
+  
+  .animated-gradient-overlay {
+    @apply absolute inset-0 -z-10 bg-background/80 backdrop-blur-[100px];
+  }
+}
+
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse-light {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-pulse-light {
+  animation: pulse-light 2s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
 }
