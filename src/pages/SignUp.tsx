@@ -5,10 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const SignUp = () => {
@@ -17,7 +16,6 @@ const SignUp = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signUp, continueAsGuest, user, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -37,15 +35,6 @@ const SignUp = () => {
       toast({
         title: "Passwords don't match",
         description: "Please make sure your passwords match",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!agreedToTerms) {
-      toast({
-        title: "Terms agreement required",
-        description: "You must agree to the Terms of Service and Privacy Policy",
         variant: "destructive",
       });
       return;
@@ -73,6 +62,12 @@ const SignUp = () => {
   return (
     <Card className="w-full animate-fade-in">
       <CardHeader>
+        <div className="flex items-center mb-2">
+          <Link to="/" className="inline-flex items-center text-sm font-medium text-accent hover:underline mr-2">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back to Home
+          </Link>
+        </div>
         <CardTitle>Create an Account</CardTitle>
         <CardDescription>Sign up to track your progress and unlock all features</CardDescription>
       </CardHeader>
@@ -132,26 +127,6 @@ const SignUp = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
             />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="terms" 
-              checked={agreedToTerms}
-              onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
-            />
-            <label
-              htmlFor="terms"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              I agree to the{' '}
-              <Link to="#" className="text-accent hover:underline">
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link to="#" className="text-accent hover:underline">
-                Privacy Policy
-              </Link>
-            </label>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

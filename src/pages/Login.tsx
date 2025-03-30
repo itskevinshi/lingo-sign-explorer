@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronLeft } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -47,6 +47,12 @@ const Login = () => {
   return (
     <Card className="w-full animate-fade-in">
       <CardHeader>
+        <div className="flex items-center mb-2">
+          <Link to="/" className="inline-flex items-center text-sm font-medium text-accent hover:underline mr-2">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back to Home
+          </Link>
+        </div>
         <CardTitle>Sign In</CardTitle>
         <CardDescription>Enter your credentials to access your account</CardDescription>
       </CardHeader>
@@ -64,12 +70,7 @@ const Login = () => {
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link to="#" className="text-xs text-accent hover:underline">
-                Forgot password?
-              </Link>
-            </div>
+            <Label htmlFor="password">Password</Label>
             <Input 
               id="password" 
               type="password" 
