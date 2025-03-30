@@ -59,6 +59,15 @@ export const lessonData: Record<string, Category> = {
         xp: 75,
         duration: '15 min',
         content: ['U', 'V', 'W', 'X', 'Y', 'Z']
+      },
+      {
+        id: 'alphabet-7',
+        title: 'Mixed Practice',
+        description: 'Practice with a random mix of letters',
+        level: 'Intermediate',
+        xp: 100,
+        duration: '20 min',
+        content: ['B', 'C', 'D', 'E', 'F', 'L', 'R', 'S', 'T', 'U', 'V', 'W', 'Y']
       }
     ]
   },
