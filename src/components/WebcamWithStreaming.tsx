@@ -173,8 +173,10 @@ const WebcamWithStreaming: React.FC<WebcamWithStreamingProps> = ({ onPrediction 
       
       // Handle predictions
       const handlePredictionData = (data: any) => {
+        // console.log("GOT PREDICTION DATA: ", data);
         setPrediction(data);
         if (onPrediction) {
+          console.log("CALLING ON PREDICTION");
           onPrediction(data);
         }
       };
