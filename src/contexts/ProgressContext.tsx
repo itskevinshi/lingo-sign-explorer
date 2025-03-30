@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProgress } from '@/types/lessons';
 import { useAuth } from './AuthContext';
@@ -32,7 +31,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch progress from database when user logs in
   useEffect(() => {
     const fetchProgress = async () => {
       setLoading(true);
@@ -45,12 +43,11 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             .eq('user_id', user.id)
             .single();
           
-          if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+          if (error && error.code !== 'PGRST116') {
             throw error;
           }
           
           if (data) {
-            // Use type casting to ensure the JSON data matches our expected types
             const completedLessons = data.completed_lessons as Record<string, boolean> || {};
             const letterAccuracy = data.letter_accuracy as Record<string, number> || {};
             
@@ -62,7 +59,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               letterAccuracy: letterAccuracy
             });
           } else {
-            // Create new progress record for user
             await createUserProgress(initialProgress);
             setProgress(initialProgress);
           }
@@ -75,7 +71,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           });
         }
       } else {
-        // If no user, reset to initial progress
         setProgress(initialProgress);
       }
       
@@ -85,7 +80,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     fetchProgress();
   }, [user, toast]);
 
-  // Save progress to database
   const saveProgress = async (updatedProgress: UserProgress) => {
     if (!user) return;
     
@@ -112,7 +106,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Create initial progress record for a new user
   const createUserProgress = async (initialData: UserProgress) => {
     if (!user) return;
     
@@ -138,7 +131,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const today = new Date().toISOString().split('T')[0];
     const lastActive = progress.lastActive;
 
-    // If it's the first time
     if (!lastActive) {
       setProgress(prev => {
         const updated = {
@@ -152,18 +144,15 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    // If user already active today, do nothing
     if (lastActive === today) return;
 
     const lastActiveDate = new Date(lastActive);
     const todayDate = new Date(today);
     
-    // Calculate the difference in days
     const diffTime = todayDate.getTime() - lastActiveDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 1) {
-      // Consecutive day, increase streak
       setProgress(prev => {
         const updated = {
           ...prev,
@@ -174,7 +163,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return updated;
       });
     } else if (diffDays > 1) {
-      // Streak broken, reset to 1
       setProgress(prev => {
         const updated = {
           ...prev,
@@ -201,7 +189,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         description: `You earned ${xpEarned} XP`,
       });
 
-      // Update streak if needed
       updateStreak();
       
       const updated = {
@@ -210,7 +197,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         xpEarned: newTotalXP
       };
       
-      // Save to database
       saveProgress(updated);
       
       return updated;
@@ -221,8 +207,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setProgress(prev => {
       const currentAccuracy = prev.letterAccuracy[letter] || 0;
       
-      // If this is the first attempt, just set the accuracy
-      // Otherwise, calculate a weighted average (70% new result, 30% previous)
       const newAccuracy = currentAccuracy === 0 
         ? accuracy 
         : Math.round(accuracy * 0.7 + currentAccuracy * 0.3);
@@ -235,7 +219,6 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       };
       
-      // Save to database
       saveProgress(updated);
       
       return updated;
@@ -286,24 +269,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const isLessonLocked = (lessonId: string, prerequisiteId?: string): boolean => {
-    // First lesson is never locked
-    if (lessonId === 'alphabet-1') return false;
-    
-    // If prerequisite is explicitly provided, check if it's completed
-    if (prerequisiteId) {
-      return !isLessonCompleted(prerequisiteId);
-    }
-    
-    // Default logic: extract category and number
-    const [category, numStr] = lessonId.split('-');
-    const lessonNum = parseInt(numStr);
-    
-    // If this is the first lesson in its category, it's not locked
-    if (lessonNum === 1) return false;
-    
-    // Check if the previous lesson in the same category is completed
-    const previousLessonId = `${category}-${lessonNum - 1}`;
-    return !isLessonCompleted(previousLessonId);
+    return false;
   };
 
   return (
