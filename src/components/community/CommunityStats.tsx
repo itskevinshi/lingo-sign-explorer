@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,15 +38,29 @@ export const CommunityStats = () => {
 
       if (progressError) throw progressError;
 
+      // Make sure we have data to work with
+      if (!progressData || progressData.length === 0) {
+        return {
+          totalUsers: totalUsers || 0,
+          totalXp: 0,
+          totalLessonsCompleted: 0,
+          mostMasteredLetters: [],
+          weeklySignsPracticed: 0
+        };
+      }
+
       const typedProgressData = progressData as unknown as UserProgressData[];
 
-      const totalXp = typedProgressData.reduce((sum, user) => sum + user.xp_earned, 0);
+      // Calculate total XP from all users
+      const totalXp = typedProgressData.reduce((sum, user) => sum + (user.xp_earned || 0), 0);
       
+      // Calculate total lessons completed from all users
       const totalLessonsCompleted = typedProgressData.reduce((sum, user) => {
         const completedLessonsCount = user.completed_lessons ? Object.keys(user.completed_lessons).length : 0;
         return sum + completedLessonsCount;
       }, 0);
 
+      // Calculate most mastered letters across all users
       const letterCounts: Record<string, number> = {};
       typedProgressData.forEach(user => {
         const letterAccuracy = user.letter_accuracy || {};

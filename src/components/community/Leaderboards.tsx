@@ -35,8 +35,9 @@ export const Leaderboards = () => {
     queryKey: ['leaderboard', leaderboardType, timePeriod],
     queryFn: async (): Promise<LeaderboardItem[]> => {
       // In a real application, you'd have separate queries for each leaderboard type and time period
-      // Here, we'll use a simplified approach
+      // For weekly and monthly, you would filter data by time
       
+      // First, get all user progress data
       const { data: progressData, error: progressError } = await supabase
         .from('user_progress')
         .select(`
@@ -49,8 +50,15 @@ export const Leaderboards = () => {
       
       if (progressError) throw progressError;
       
+      // If no progress data, return empty array
+      if (!progressData || progressData.length === 0) {
+        return [];
+      }
+      
+      // Get all user IDs from progress data
       const userIds = progressData.map(item => item.user_id);
       
+      // Get user profile data for these users
       const { data: userData, error: userError } = await supabase
         .from('profiles')
         .select('id, username, first_name, last_name, avatar_url')
@@ -60,9 +68,11 @@ export const Leaderboards = () => {
       
       // Map user data to a lookup object
       const userMap: Record<string, User> = {};
-      userData.forEach(user => {
-        userMap[user.id] = user;
-      });
+      if (userData) {
+        userData.forEach(user => {
+          userMap[user.id] = user;
+        });
+      }
       
       // Process data based on leaderboard type
       let processedData: { userId: string; score: number }[] = [];
@@ -110,7 +120,13 @@ export const Leaderboards = () => {
         .sort((a, b) => b.score - a.score)
         .map((item, index) => ({
           ...item,
-          user: userMap[item.userId],
+          user: userMap[item.userId] || {
+            id: item.userId,
+            username: null,
+            first_name: null,
+            last_name: null,
+            avatar_url: null
+          },
           rank: index + 1
         }))
         .slice(0, 10); // Top 10
