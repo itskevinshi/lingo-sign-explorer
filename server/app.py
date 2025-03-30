@@ -75,12 +75,16 @@ class SignLanguageModel:
             # Define custom rules for conflicting predictions from main.py
             self.custom_rules = {
                 ("H", "S"): "A",
+                ("U", "B"): "B",
                 ("C", "Y"): "C",
+                ("O", "C"): "C",
                 ("R", "D"): "D",
                 ("B", "F"): "F",
                 ("U", "F"): "F",
                 ("X", "I"): "I",
                 ("X", "Y"): "I",
+                ("R", "I"): "I",
+                ("X", "L"): "L",
                 ("M", "S"): "M",
                 ("M", "X"): "M",
                 ("N", "M"): "N",
